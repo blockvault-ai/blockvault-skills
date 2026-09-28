@@ -24,7 +24,7 @@ Do not open LP positions without first checking the balances.
 Manage Uniswap V2/V3/V4 liquidity positions via the BlockVault Uniswap API.
 Base URL: `https://402.blockvault.ai`
 
-The `bash` tool auto-detects metatransaction responses (containing `to`, `data`, `chainId`) and signs+broadcasts them via WDK.
+Mutating LP endpoints return a signable envelope with an ordered `transactions[]` list (approvals first, then the action), each entry `{ to, data, value, chainId }`. The `bash` tool auto-detects these envelopes and signs+broadcasts each transaction in order. If auto-detection does not fire, sign manually with `run_js` → `sign_transaction` using each returned `to`, `data`, and the matching `blockchain` (resolved from `chainId`).
 
 ## Typed sub-schemas
 

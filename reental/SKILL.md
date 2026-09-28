@@ -8,13 +8,40 @@ metadata:
 
 ### Instructions
 
-This is a **conversational** skill: discover the user's intent, present options, and act only after the user picks.
+This is a **conversational** skill. First **identify the user's intent**, then guide them to a concrete action — never execute a mutating endpoint without an explicit user pick.
 
-1. Get the wallet address and balances (`get_assets`).
-2. List the lending reserves, render them (best APY first), and **ask the user** which asset and action they want, plus the amount.
-3. Check the user's current position (`/user/<wallet>`) when relevant.
-4. Wait for the user's choice before calling any mutating endpoint — never supply, borrow, withdraw, or repay without an explicit user pick.
-5. Execute the requested action, then notify the user of the result.
+#### Step 0: Parse user intent
+
+Determine the action from the user's message:
+
+| Intent | Action | Keywords |
+|---|---|---|
+| **SUPPLY** | `/supply` | lend, supply, deposit, earn yield, earn, APY, put to work |
+| **BORROW** | `/borrow` | borrow, loan, take out, leverage |
+| **WITHDRAW** | `/withdraw` | withdraw, redeem, take out, pull out, exit |
+| **REPAY** | `/repay` | repay, pay back, close loan, settle |
+| **POSITION** | `/user/<wallet>` | my positions, my position, what do I have, balance, supplied, borrowed |
+| **RESERVES** | `/reserves` | rates, pools, what can I lend, list, earn on |
+
+Read-only intents (POSITION, RESERVES) never require a pick — just fetch and render. Mutating intents (SUPPLY, BORROW, WITHDRAW, REPAY) require the user to confirm **asset** and **amount** before any call.
+
+#### Step 1: Get the wallet address and balances
+
+Call `run_js` with `function: "get_assets"`, `data: {"hasBalance": true}`. Note the wallet `address` for the target chain and verify sufficient funds first.
+
+#### Step 2: Fetch the data the intent needs
+
+- SUPPLY / BORROW → `/reserves` to list assets and APYs.
+- WITHDRAW / REPAY → `/user/<wallet>` plus `/reserves`, so the user can pick from what they actually hold/owe.
+- POSITION → `/user/<wallet>` only.
+
+#### Step 3: Present options and ask
+
+Render the relevant table/chart, then ask the user for asset + action + amount using `ask_choice` (asset/action) and `ask_input` (amount). Wait for their answer before any mutating endpoint.
+
+#### Step 4: Execute and notify
+
+Call the chosen endpoint, then notify the user of the result via `notify_user`.
 
 If there are insufficient funds, or an action fails, notify the user with the error message.
 Do not supply or borrow without first checking the reserves and the user's balances.
@@ -25,7 +52,7 @@ Do not supply or borrow without first checking the reserves and the user's balan
 Supply and borrow assets through the Reental lending protocol via the BlockVault API.
 Base URL: `https://402.blockvault.ai`
 
-Every mutating endpoint (`/supply`, `/withdraw`, `/borrow`, `/repay`) returns a **signable envelope** (ABI-encoded calldata). The `bash` tool auto-detects metatransaction responses (containing `to`, `data`, `chainId`) and signs+broadcasts them via WDK.
+Every mutating endpoint (`/supply`, `/withdraw`, `/borrow`, `/repay`) returns a **signable envelope** with an ordered `transactions[]` list, each entry `{ to, data, value, chainId, from }`. The `bash` tool auto-detects these `transactions[]` envelopes — it signs and broadcasts each transaction in order via the wallet (blockchain resolved from `chainId`, e.g. `137` = polygon). If auto-detection does not fire (e.g. an unexpected response shape), sign manually with `run_js` → `sign_transaction` using the returned `to`, `data`, and `blockchain: "polygon"`.
 
 ## Typed request fields
 
@@ -55,7 +82,7 @@ Fetch all reserves with supply/borrow APY, liquidity, and USD price:
 curl -s "https://402.blockvault.ai/api/v1/reental/reserves"
 ```
 
-Each reserve returns `underlying_asset`, `symbol`, `decimals`, `supply_apy`, `borrow_apy`, `total_supplied`, `available_liquidity`, `total_borrowed`, and `price_in_usd`. APY values are decimal (e.g. `0.1412` = 14.12%).
+Each reserve returns `underlying_asset`, `symbol`, `decimals`, `supply_apy`, `borrow_apy`, `price_in_usd`, and USD-normalized amounts (`available_liquidity_usd`, `total_supplied_usd`, `total_borrowed_usd`). APY values are decimal (e.g. `0.1412` = 14.12%). The list is already cleaned server-side — inactive (0% APY, no liquidity) reserves are omitted from the response.
 
 
 ### Present the reserve options (Jinja2)
@@ -70,13 +97,13 @@ Here are the current pools, ordered by best supply APY:
 | # | Asset | Supply APY | Borrow APY | Available liquidity | Price |
 |---|-------|-----------|------------|---------------------|-------|
 {% for r in reserves_sorted %}
-| **{{ loop.index }}** | {{ r.symbol }} | {{ (r.supply_apy * 100) | round(2) }}% | {{ (r.borrow_apy * 100) | round(2) }}% | ${{ r.available_liquidity | round(2) }} | ${{ r.price_in_usd }} |
+| **{{ loop.index }}** | {{ r.symbol }} | {{ (r.supply_apy * 100) | round(2) }}% | {{ (r.borrow_apy * 100) | round(2) }}% | ${{ r.available_liquidity_usd | round(2) }} | ${{ r.price_in_usd }} |
 {% endfor %}
 
 Tell me the **number** of the asset and what you want to do — `supply`, `borrow`, `withdraw`, or `repay` — plus the amount.
 ````
 
-After rendering, **ask the user** which reserve and action they want, and the amount. Wait for their answer before calling any mutating endpoint. Never pick an asset or amount for the user.
+After rendering, **ask the user** which reserve and action they want, and the amount. Prefer `ask_choice` with the sorted asset symbols (plus the action) and `ask_input` (type `number`) for the amount. Wait for their answer before calling any mutating endpoint. Never pick an asset or amount for the user.
 
 
 ### Market summary
@@ -150,7 +177,7 @@ Fetch supplied and borrowed positions across all reserves:
 curl -s "https://402.blockvault.ai/api/v1/reental/user/<wallet_address>"
 ```
 
-Returns `positions` with `underlying_asset`, `symbol`, `supplied`, and `borrowed` per reserve.
+Returns `positions` with `underlying_asset`, `symbol`, `decimals`, and human-readable `supplied_human` / `borrowed_human` (in tokens, already divided by `decimals` — use these, not the raw `supplied`/`borrowed` which are base units).
 
 Render the position with an ECharts grouped bar (supplied vs borrowed per asset) plus a summary table, using the template below:
 
@@ -175,7 +202,7 @@ Render the position with an ECharts grouped bar (supplied vs borrowed per asset)
 | Asset | Supplied | Borrowed |
 |-------|----------|----------|
 {% for p in positions %}
-| {{ p.symbol }} | {{ p.supplied }} | {{ p.borrowed }} |
+| {{ p.symbol }} | {{ p.supplied_human }} | {{ p.borrowed_human }} |
 {% endfor %}
 ````
 
