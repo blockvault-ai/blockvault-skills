@@ -194,6 +194,12 @@ Tell the user the portfolio analysis is complete, report was saved, and provide 
 - Mention the risk profile and diversification score.
 - Highlight the most important insight or suggestion.
 
+Emit the saved report path in **backticks** (inline code) so the user can tap it to open the file (the app makes `reports/…` paths clickable):
+
+```text
+Report saved to `reports/portfolio-analysis-{{ current_date }}.md`
+```
+
 Do not output the raw data or the full report content.
 
 ## Constraints

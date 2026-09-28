@@ -148,6 +148,12 @@ Render the offer (see "Rendering" below). The user must explicitly say **yes / c
 
 Render the final receipt. Then use the `text_editor` tool to create `receipts/rye-<INTENT_ID>.md` containing product, totals, `orderId`, the two on-chain tx hashes (BlockVault returns them after each x402 modal approval), and the merchant ETA.
 
+In your chat reply, emit the receipt path in **backticks** (inline code) so the user can tap it to open the file (the app makes `receipts/…` paths clickable):
+
+```text
+Receipt saved to `receipts/rye-<INTENT_ID>.md`
+```
+
 ## Browse / price-check flow ("how much would this cost me?")
 
 If the user just wants a price quote without buying:

@@ -27,6 +27,14 @@ Load a skill by name to get step-by-step instructions.
 Execute a registered function by name. Use only after load_skill instructs you to.
 - Pass both `function` (name) and `data` (JSON string with parameters).
 
+### text_editor
+Read a file in the data workspace (read-only — `view`, `search`, and `query` are available to you).
+- `path` (required): the file path returned as `artifact_path` by `bash`, `run_js`, or `web_search` when a large result was spilled to a file.
+- `view_range` (optional): line range `[start, end]` (1-indexed) to paginate a large file instead of reading it all at once.
+- `expression` (optional): for `query`, a JMESPath expression over JSON (e.g. `[*]`, `items[*].name`).
+- `pattern` (optional, with `regex`): for `search`, a substring or regex to jump to a match.
+- Use this whenever a tool returns a note like *"Full result saved to file"* — read the outline, then use `query`/`search`/`view` to get exactly what you need instead of the preview.
+
 ### end_task
 **Signal successful completion.** Call this when you have all the information needed to answer the objective. This is the **only** valid way to finish a task successfully.
 - `response` (required): your complete, self-contained final answer in **markdown** (prose, lists, tables, headings — whatever fits the output_format). **Never return raw JSON here** — if you need to pass structured fields, express them as a markdown key/value list or table.

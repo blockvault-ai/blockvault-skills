@@ -113,4 +113,8 @@ The template below is **Jinja2** — substitute `{{ var }}` with concrete values
 
 ### Step 6: Respond
 
-Brief summary (3-4 sentences): strongest opportunity, overall sentiment, assets to watch. Do not paste the full report.
+Brief summary (3-4 sentences): strongest opportunity, overall sentiment, assets to watch. Do not paste the full report. Emit the saved report path in **backticks** (inline code) so the user can tap it to open the file (the app makes `reports/…` paths clickable):
+
+```text
+Report saved to `reports/alpha-scan-{{ current_date }}.md`
+```

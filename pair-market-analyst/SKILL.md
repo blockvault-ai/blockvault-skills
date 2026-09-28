@@ -267,7 +267,11 @@ Only if the user explicitly asks to save, export, or generate a report file, sav
 
 **file path**: `"reports/crypto-market-analysis-{{ pair }}-{{ current_date }}.md"`
 
-Save the same content you already presented in Step 5. Confirm to the user that the report was saved.
+Save the same content you already presented in Step 5. Confirm to the user that the report was saved, and emit its path in **backticks** (inline code) so they can tap it to open the file (the app makes `reports/…` paths clickable):
+
+```text
+Report saved to `reports/crypto-market-analysis-{{ pair }}-{{ current_date }}.md`
+```
 
 ## ECharts Data Formatting Rules
 

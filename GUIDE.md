@@ -215,7 +215,7 @@ Skills orchestrate **tools** — the actual functions the agent can execute. The
 |---|---|
 | `web_search` | Search the internet for information |
 | `bash` | Execute shell commands (curl, etc.) |
-| `text_editor` | Create/edit files on device storage |
+| `text_editor` | Create/edit files, and read/search/query spilled results (view, search, query) |
 | `sign_transaction` | Request user to sign a blockchain transaction |
 
 **Usage in SKILL.md:**

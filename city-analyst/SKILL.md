@@ -173,3 +173,9 @@ No significant discrepancies detected between structured data and recent reporti
 
 - If the API returns errors for some providers, log the error and do not proceed to the next steps, explain the issue to the user.
 - If `resolved_location` is returned, use it to confirm the correct city was queried and use its city/country names for the report title.
+
+After saving the report, emit its path in **backticks** (inline code) so the user can tap it to open the file (the app makes `reports/…` paths clickable):
+
+```text
+Report saved to `reports/city-analysis-{{ city_name }}-{{ current_date }}.md`
+```

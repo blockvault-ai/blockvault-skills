@@ -127,7 +127,13 @@ Synthesize everything: API data from Step 2, web research from Step 3, and the u
 {{ suggested_actions }}  {# Concrete action/watchlist ideas: entry points, levels to monitor, upcoming events #}
 ```
 
-Save the report. Tell the user a brief summary (2-3 sentences) and that the report was saved. Do NOT output the full raw report.
+Save the report. Tell the user a brief summary (2-3 sentences) and that the report was saved. Emit the saved report path in **backticks** (inline code) so the user can tap it to open the file (the app makes `reports/…` paths clickable):
+
+```text
+Report saved to `reports/stock-analysis-{{ ticker }}-{{ current_date }}.md`
+```
+
+Do NOT output the full raw report.
 
 ## Constraints
 
