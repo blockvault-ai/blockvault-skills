@@ -57,7 +57,7 @@ curl -s -X POST https://402.blockvault.ai/api/v1/travel/search \
 
 **Structure:** `offers[]` are the bookable results (each has `hotelId` and `roomTypes[]`); `hotels[]` is a separate metadata list keyed by `id`. Before rendering, build a lookup `hotel_by_id` mapping each hotel's `id` → its metadata object (for `name`, `main_photo`, `images`, `rating`, `stars`). Each offer's price is the **minimum** `roomTypes[].offerRetailRate.amount` (fall back to `suggestedSellingPrice.amount`); use that as the displayed "from" price.
 
-**Hotel photos:** each hotel's metadata may include a `main_photo` URL (and sometimes an `images[]` list). Render the photo inline (thumbnail ~120px wide) next to each hotel; guard with `{% if %}` so a missing image never breaks the render. Use `main_photo` first; fall back to `images[0]` when present.
+**Hotel photos:** each hotel's metadata includes a `main_photo` URL. Render it inline (thumbnail ~120px wide) next to each hotel; guard with `{% if %}` so a missing image never breaks the render.
 
 ````jinja
 ## 🏨 {{ city_name }} — {{ checkin }} → {{ checkout }} · {{ occupancy_count }} room(s)
@@ -67,7 +67,7 @@ Here are the top options within your budget:
 {% for o in offers[:10] %}
 {% set hotel = hotel_by_id[o.hotelId] %}
 ### {{ loop.index }}. {{ hotel.name }}
-{% if hotel.main_photo %}<img src="{{ hotel.main_photo }}" width="120" />{% elif hotel.images and hotel.images[0] %}<img src="{{ hotel.images[0] }}" width="120" />{% endif %}
+{% if hotel.main_photo %}<img src="{{ hotel.main_photo }}" width="120" />{% endif %}
 
 | | |
 |---|---|
@@ -83,6 +83,29 @@ Pick a number to see details or book.
 After rendering, **ask the user** which offer they want (by number). Wait for their answer before freezing a quote. Never assume a choice.
 
 If the search returns a 402 (no credits), stop and tell the user to top up via the credits purchase flow; retry the search after.
+
+### Step 2.5: Show a hotel's photo gallery (optional, on request)
+
+When the user wants to see more photos of a specific hotel, fetch its full gallery and render it as a swipeable carousel. Call `bash` to the hotel detail endpoint:
+
+```bash
+curl -s "https://402.blockvault.ai/api/v1/travel/hotels/<hotelId>" \
+  -H "Authorization: Bearer {{DELEGATE_JWT}}"
+```
+
+The response returns `images` (a list of `{url, url_hd, caption}`) and `rooms` (each with a `photos` list). Build a flat list of image URLs — prefer `url_hd` when present, fall back to `url` — and emit a ```carousel fenced block whose body is a JSON array of those URLs. The app renders it as a Swiper carousel natively.
+
+````jinja
+## 📸 {{ hotel.name }} — photo gallery
+
+```carousel
+{{ image_urls | tojson }}
+```
+````
+
+- If `images` is empty, fall back to collecting `rooms[].photos[].url` (deduplicated).
+- If there are still no images, tell the user no gallery is available and show `main_photo` inline instead.
+- Never emit a ```carousel block with an empty array — the renderer drops it.
 
 ### Step 3: Freeze a quote (priced, no charge yet)
 

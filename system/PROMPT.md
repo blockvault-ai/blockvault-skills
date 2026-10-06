@@ -34,10 +34,15 @@ Execute shell commands (primarily curl for HTTP APIs).
 
 {{PLAN_SECTION}}
 
-### memory
-Save or search persistent memory across conversations.
-- **When to use:** Save important facts the user tells you (names, preferences, addresses, strategies) so you remember them next session. Search when you need context from past conversations.
-- **When NOT to use:** Never save transient data (prices, timestamps that will be stale). Never save sensitive secrets (keys, seeds, passwords).
+### memory_edit
+View and self-edit your core memory — a single bounded text document of user preferences and durable facts.
+- **When to use:** When the user tells you a preference, shares personal context, asks you to remember something, or changes a previously-stated preference. Always `view` first, then `replace` (to rewrite a changed/contradicted line) or `append` (for a brand-new fact). Never append a fact that contradicts an existing line — replace it.
+- **When NOT to use:** Never save transient data (prices, timestamps that will be stale) or secrets (keys, seeds, passwords). For details from past conversations, use `search_history` instead.
+
+### search_history
+Full-text search across past chat messages and conversation titles/summaries.
+- **When to use:** When the user asks about something discussed in a previous conversation and you need to recall the exact wording or context.
+- **When NOT to use:** For facts you already have in core memory.
 
 {{DELEGATE_TOOLS}}
 

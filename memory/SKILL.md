@@ -1,63 +1,69 @@
 ---
 name: memory
-description: Save and search persistent memory across conversations.
+description: Maintain the agent's core memory — a single bounded, self-edited document of user preferences and durable facts.
 metadata:
-  tool: memory
+  tool: memory_edit
   category: tools
 ---
 
 # Memory
 
-Save and search the user's persistent memory.
+Your memory is a single bounded text document (core memory). You read it and
+rewrite it in-place — you do NOT append discrete facts. This prevents
+duplication, fragmentation, and contradictions.
 
 ## Instructions
 
 Execute all steps silently.
 
-### When to save
+### When to update memory
 
-Save to memory when the user:
+Update memory when the user:
 
 - Tells you a preference ("I prefer BTC", "my main wallet is...")
 - Shares personal context (name, occupation, goals)
 - Explicitly asks you to remember something
-- Completes a significant action worth recalling later
+- Changes a previously-stated preference (rewrite, don't append)
 
 Do NOT save trivial or one-off questions.
 
-### Save
+### The self-editing loop
 
-Call `run_js` with:
+1. **View** — read the current memory first:
+   - **function**: "memory_edit"
+   - **data**: `{"action": "view"}`
 
-- **function**: "memory"
-- **data**: `{"action": "save", "content": "<fact to remember>", "category": "<preference|identity|goal|fact|observation>", "importance": <0-5>}`
+2. **Reconcile** — decide:
+   - New fact → `append`
+   - Changed/contradicted fact → `replace` the existing line (never append a contradiction)
+   - Stale fact → `replace` to remove or correct it
 
-`category` defaults to "fact", `importance` defaults to 0. Use "preference" for
-likes/dislikes, "identity" for stable facts about the user, "goal" for objectives,
-"fact" for general durable findings, "observation" for lower-value notes.
+3. **Rewrite** — apply the edit:
+   - **function**: "memory_edit"
+   - **data**: `{"action": "replace", "old_str": "<exact existing text>", "new_str": "<new text>"}`
+   - **function**: "memory_edit"
+   - **data**: `{"action": "append", "new_str": "<new line>"}`
 
-### Search
+`old_str` must match the document exactly once. If it appears more than once,
+include more surrounding context to make it unique. If it is not found, re-read
+with `view` and retry.
 
-Call `run_js` with:
+### Size cap and consolidation
 
-- **function**: "memory"
-- **data**: `{"action": "search", "query": "<keywords>", "limit": <max_results>}`
+The document is capped (~2400 chars). When it approaches the cap, consolidate:
+merge related lines, drop stale/trivial entries, and keep only what matters for
+future recommendations. Prefer rewriting a section over appending.
 
-`limit` defaults to 5.
+### Search history (archival)
 
-### Forget
+For details from past conversations that don't belong in core memory, use:
 
-Call `run_js` with:
-
-- **function**: "memory"
-- **data**: `{"action": "forget", "content": "<exact fact text to delete>"}`
-
-Use `forget` when the user asks you to forget something, or when a saved fact is
-now wrong and should be removed rather than corrected.
+- **function**: "search_history"
+- **data**: `{"query": "<keywords>", "scope": "<messages|conversations|all>", "limit": <max_results>}`
 
 ## Constraints
 
-- Keep saved content concise — one fact per entry.
-- Saving the same fact again updates it (no duplicates).
-- Use "preference"/"identity"/"goal"/"fact" for durable facts; "observation" for transient notes.
+- One fact per line, concise.
+- Never append a fact that contradicts an existing line — replace it.
 - Do not save information the user explicitly asked you to forget.
+- Do not save transient data (prices, timestamps that will be stale) or secrets.
