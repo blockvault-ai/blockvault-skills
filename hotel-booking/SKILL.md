@@ -37,7 +37,8 @@ The secret placeholder `{{DELEGATE_JWT}}` is resolved automatically — write it
 
 ```bash
 curl -sS "https://402.blockvault.ai/api/v1/travel/hotels?city_name=<City>&country_code=<CC>&limit=50&offset=0" \
-  -H "Authorization: Bearer {{DELEGATE_JWT}}"
+  -H "Authorization: Bearer {{DELEGATE_JWT}}" \
+  -o <city>-<checkin>-<checkout>.json
 ```
 
 ### Search rooms for a hotel
@@ -46,14 +47,16 @@ curl -sS "https://402.blockvault.ai/api/v1/travel/hotels?city_name=<City>&countr
 curl -sS -X POST https://402.blockvault.ai/api/v1/travel/search \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer {{DELEGATE_JWT}}" \
-  -d '{"checkin":"<YYYY-MM-DD>","checkout":"<YYYY-MM-DD>","currency":"<CUR>","guest_nationality":"<CC>","occupancies":[{"adults":<n>,"children":[]}],"hotel_ids":["<hotelId>"],"limit":100,"offset":0,"max_price":<budget>}'
+  -d '{"checkin":"<YYYY-MM-DD>","checkout":"<YYYY-MM-DD>","currency":"<CUR>","guest_nationality":"<CC>","occupancies":[{"adults":<n>,"children":[]}],"hotel_ids":["<hotelId>"],"limit":100,"offset":0,"max_price":<budget>}' \
+  -o <hotelId>-<checkin>-<checkout>.json
 ```
 
 ### Hotel photo gallery
 
 ```bash
 curl -sS "https://402.blockvault.ai/api/v1/travel/hotels/<hotelId>" \
-  -H "Authorization: Bearer {{DELEGATE_JWT}}"
+  -H "Authorization: Bearer {{DELEGATE_JWT}}" \
+  -o <hotelId>-detail.json
 ```
 
 ### Freeze a quote (priced, no charge yet)
@@ -97,34 +100,23 @@ The sub-agent must produce exactly one location method plus `checkin`, `checkout
 
 ## Step 2: Discover hotels (lightweight)
 
-Call `bash` with `GET /travel/hotels`. It returns a compact hotel list (no rates) — `hotels[]` with `id`, `name`, `rating`, `stars`, `address`, `city`, `country`, `latitude`, `longitude`, `distance`, `main_photo`. Paginate with `offset`/`limit`; each response returns `has_more` and `total`.
+Call `bash` with `GET /travel/hotels` **and `-o <city>-<checkin>-<checkout>.json`** so the response is saved to an artifact even though it is small. Use a unique filename derived from the city and dates so repeated searches never overwrite each other. It returns a compact hotel list (no rates) — `hotels[]` with `id`, `name`, `rating`, `stars`, `address`, `city`, `country`, `latitude`, `longitude`, `distance`, `main_photo`. Paginate with `offset`/`limit`; each response returns `has_more` and `total`.
 
 - Search by city (`city_name` + `country_code`) or geolocation (`latitude` + `longitude` + `distance`).
 - This endpoint never returns room rates — it is cheap and token-light. Use it to browse hotels, then fetch rooms for the chosen hotel.
 
 ## Rendering — Step A: hotels only
 
-Render the hotel list. Show one line per hotel (name, photo, rating, stars, distance). No rooms here.
+The `bash` result includes `artifact_path` (from `-o`). **Do NOT read the JSON.** Emit an ```artifact fenced block so the app renders the hotel list as a swipeable card deck. The template `hotel-booking:hotel-list` renders `data.hotels` (name, main_photo, rating, stars, distance).
 
-````jinja
-## 🏨 {{ city_name }} — {{ checkin }} → {{ checkout }} · {{ occupancy_count }} room(s)
-
-Here are the top options:
-
-{% for h in hotels[:10] %}
-### {{ loop.index }}. {{ h.name }}
-{% if h.main_photo %}<img src="{{ h.main_photo }}" width="120" />{% endif %}
-
-{% if h.rating %}Rating: {{ h.rating }}{% endif %}
-{% if h.stars %} · {{ h.stars }} stars{% endif %}
-{% if h.distance %} · {{ h.distance }} km away{% endif %}
-
-{% endfor %}
-
-**My pick:** <hotel name> — <one-line reason tied to the user's needs>.
-
-Pick a hotel number to see its rooms.
+````markdown
+```artifact
+{"artifact":"<artifact_path>","template":"hotel-booking:hotel-list","context":{"city_name":"<City>","checkin":"<YYYY-MM-DD>","checkout":"<YYYY-MM-DD>"}}
+```
 ````
+
+- `<artifact_path>` is the `artifact_path` returned by the `bash` tool result.
+- Add a one-line recommendation below the fence: **My pick:** <hotel name> — <reason tied to the user's needs>.
 
 After rendering, **ask the user** which hotel they want (by number). Wait for their answer before showing rooms.
 
@@ -136,56 +128,27 @@ When the user picks a hotel, search its rooms with `POST /travel/search` scoped 
 curl -sS -X POST https://402.blockvault.ai/api/v1/travel/search \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer {{DELEGATE_JWT}}" \
-  -d '{"checkin":"<YYYY-MM-DD>","checkout":"<YYYY-MM-DD>","currency":"<CUR>","guest_nationality":"<CC>","occupancies":[{"adults":<n>,"children":[]}],"hotel_ids":["<hotelId>"],"limit":100,"offset":0}'
+  -d '{"checkin":"<YYYY-MM-DD>","checkout":"<YYYY-MM-DD>","currency":"<CUR>","guest_nationality":"<CC>","occupancies":[{"adults":<n>,"children":[]}],"hotel_ids":["<hotelId>"],"limit":100,"offset":0}' \
+  -o <hotelId>-<checkin>-<checkout>.json
 ```
 
-The response returns `offers[]` (one per hotel) with `rooms[]` — each room has a short `offerId`, `price`, `name`, `board`, `refundable`, `bedType`, `maxOccupancy`, `photos`, and `amenities`.
+The response returns `offers[]` (one per hotel) with `rooms[]` — each room has a short `offerId`, `price`, `name`, `board`, `refundable`, `maxOccupancy`, `adultCount`, `childCount`, plus `photos` (list of URLs), `amenities` (list of names) and `bedTypes` (list of names) merged from the hotel detail record.
 
 Then compute the hotel's price range from the response: `min = min(r.price for r in rooms)`, `max = max(r.price for r in rooms)`. **Ask the user for a min and max within those bounds** before rendering — a hotel can return hundreds of room rates. Ask one question: "Rooms at <hotel> range from $<min> to $<max>. What's your price range? (e.g. $100–$200, or 'all')".
 
 Then filter `rooms` to the range and **cap the list** — never render more than ~15 rooms. If more match, show the cheapest 15 and say so.
 
-````jinja
-## 🏨 {{ hotel.name }} — rooms ({{ min_price }}–{{ max_price }} {{ currency }})
+The `bash` result includes `artifact_path` (from `-o`). **Do NOT read the JSON.** Emit an ```artifact fence with template `hotel-booking:room-list` (renders `data.offers[0].rooms` as a swipeable card deck, each card showing the room's first photo, name, price, board, refundability and amenities).
 
-{% for r in rooms[:15] %}
-- **{{ loop.index }}. {{ r.name or 'Room' }}** — {{ r.price }} {{ currency }}{% if r.board %} · {{ r.board }}{% endif %}{% if r.refundable %} · refundable{% endif %}
-{% endfor %}
-
-{% if rooms | length > 15 %}…and {{ rooms | length - 15 }} more — narrow the price range to see them.{% endif %}
-
-Pick a room number to see details or book.
+````markdown
+```artifact
+{"artifact":"<artifact_path>","template":"hotel-booking:room-list","context":{"currency":"<CUR>"}}
+```
 ````
 
 - Filter `rooms` client-side by the user's min/max before rendering (the server's `min_price`/`max_price` filter hotels, not individual rooms).
 - If the range yields nothing, widen it or show the nearest 3 rooms and say so.
 - After rendering, **ask the user** which room they want (by number). Wait for their answer.
-
-## Step 2.2: Show room details (photos + what's included)
-
-When the user picks a room, show its details before booking: photos and amenities. Each room carries `photos` (list of `{url, urlHd}`) and `amenities` (list of strings), plus `bedType` and `maxOccupancy` when present.
-
-````jinja
-## 🏨 {{ hotel.name }} — {{ room.name }}
-
-{% if room.photos %}<img src="{{ room.photos[0].urlHd or room.photos[0].url }}" width="240" />{% endif %}
-
-| | |
-|---|---|
-| Price | {{ room.price }} {{ currency }} |
-{% if room.board %}| Board | {{ room.board }} |{% endif %}
-{% if room.bedType %}| Bed | {{ room.bedType }} |{% endif %}
-{% if room.maxOccupancy %}| Sleeps | {{ room.maxOccupancy }} |{% endif %}
-{% if room.refundable %}| Refundable | Yes |{% endif %}
-
-{% if room.amenities %}**Included:** {{ room.amenities | join(', ') }}{% endif %}
-
-Book this room?
-````
-
-- If `photos` is empty, fall back to the hotel's `main_photo`.
-- If `amenities` is empty, omit the line.
-- Confirm before freezing a quote.
 
 **Never print `offerId` values.** They are short opaque tokens — keep them in memory, keyed by the hotel/room number you showed the user. When the user picks "hotel 2, room 1", look up that room's `offerId` from the search response and use it in the quote call.
 
@@ -193,21 +156,18 @@ If the search returns a 402 (no credits), stop and tell the user to top up via t
 
 ## Step 2.5: Show a hotel's photo gallery (optional, on request)
 
-When the user wants to see more photos of a specific hotel, fetch its full gallery and render it as a swipeable carousel. Call `bash` to the hotel detail endpoint.
+When the user wants to see more photos of a specific hotel, fetch its full gallery. Call `bash` to the hotel detail endpoint **with `-o <hotelId>-detail.json`**.
 
-The response returns `images` (a list of `{url, url_hd, caption}`) and `rooms` (each with a `photos` list). Build a flat list of image URLs — prefer `url_hd` when present, fall back to `url` — and emit a ```carousel fenced block whose body is a JSON array of those URLs. The app renders it as a Swiper carousel natively.
+The response returns `images` (a list of `{url, url_hd, caption}`) and `rooms` (each with a `photos` list). The `bash` result includes `artifact_path`. **Do NOT read the JSON.** Emit an ```artifact fence with template `hotel-booking:gallery` (renders `data.images` as a swipeable image swiper).
 
-````jinja
-## 📸 {{ hotel.name }} — photo gallery
-
-```carousel
-{{ image_urls | tojson }}
+````markdown
+```artifact
+{"artifact":"<artifact_path>","template":"hotel-booking:gallery"}
 ```
 ````
 
-- If `images` is empty, fall back to collecting `rooms[].photos[].url` (deduplicated).
+- If `images` is empty, fall back to collecting `rooms[].photos[].url` (deduplicated) and pass them as `data.images`.
 - If there are still no images, tell the user no gallery is available and show `main_photo` inline instead.
-- Never emit a ```carousel block with an empty array — the renderer drops it.
 
 ## Step 3: Freeze a quote (priced, no charge yet)
 
@@ -226,6 +186,18 @@ On 402 payment-required: the x402 flow was not completed — the user declined o
 ## Step 5: Show booking history (optional)
 
 List the user's persisted bookings (paginated, 1-indexed `page`/`page_size`) via the booking history endpoint.
+
+## Follow-up questions (sub-agent reader)
+
+When the user asks a follow-up about the rendered results ("which hotel has a pool?", "show only 4-star hotels"), do **not** re-read the whole artifact in the main conversation. Spawn a sub-agent to answer from the artifact:
+
+Call `spawn_subagents` with one task:
+
+- **tasks**: Array, Required. One element:
+  - **id**: `"hotel_filter"`.
+  - **objective**: `"Answer this question from the artifact: <user question>. The artifact is at <artifact_path>."`.
+  - **instructions**: Use `text_editor` with `command: "query"` (JMESPath) or `command: "search"` to read only the relevant slice of the artifact — never load the whole file. Return a concise markdown answer.
+  - **output_format**: `"Markdown — a short answer plus the matching hotel/room names."`.
 
 ## Constraints
 

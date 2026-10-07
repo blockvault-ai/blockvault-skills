@@ -45,7 +45,8 @@ Call `bash` with a curl to `/travel/flights/search`. It requires `Authorization:
 curl -s -X POST https://402.blockvault.ai/api/v1/travel/flights/search \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer {{DELEGATE_JWT}}" \
-  -d '{"legs":[{"origin":"<ORIGIN_IATA>","destination":"<DEST_IATA>","date":"<YYYY-MM-DD>","direction":"OUTBOUND"}],"adults":<n>,"currency":"<CUR>","max_stops":<stops>,"max_price":<budget>}'
+  -d '{"legs":[{"origin":"<ORIGIN_IATA>","destination":"<DEST_IATA>","date":"<YYYY-MM-DD>","direction":"OUTBOUND"}],"adults":<n>,"currency":"<CUR>","max_stops":<stops>,"max_price":<budget>}' \
+  -o <origin>-<destination>-<outbound_date>.json
 ```
 
 - **Round trip:** send two legs — outbound (`direction: "OUTBOUND"`) and return (`direction: "INBOUND"`, origin/destination swapped, `date` = return date).
@@ -56,25 +57,14 @@ curl -s -X POST https://402.blockvault.ai/api/v1/travel/flights/search \
 
 **Structure:** `journeys[]` are the bookable results. Each journey has `segments[]` (with `originCode`, `destinationCode`, `departureTime`, `arrivalTime`, `carrier.marketingName`, `carrier.marketingLogo`, `duration.minutes`) and `offers[]` (each with `offerId`, `pricing.display.total`, `pricing.display.currency`, `terms.refundable`, `baggage`). Use the **cheapest** offer's `pricing.display.total` as the displayed price.
 
-**Airline logos:** each segment's `carrier.marketingLogo` is a URL — render it inline (≤ 40px) next to the airline name. Guard with `{% if %}` so a missing logo never breaks the render.
+**Airline logos:** each segment's `carrier.marketingLogo` is a URL — the template renders it inline (≤ 40px) next to the airline name.
 
-````jinja
-## ✈️ {{ origin }} → {{ destination }} · {{ outbound_date }}{% if return_date %} ↔ {{ return_date }}{% endif %}
+The `bash` result includes `artifact_path` (from `-o`). **Do NOT read the JSON.** Emit an ```artifact fence with template `flight-booking:flight-list` (renders `data.journeys` as a swipeable card deck, cheapest offer per journey).
 
-Here are the top options:
-
-{% for j in journeys[:5] %}
-{% set offer = j.offers[0] %}
-### {{ loop.index }}. {{ j.segments[0].carrier.marketingName }} — {{ offer.pricing.display.total }} {{ offer.pricing.display.currency }}
-{% for seg in j.segments %}
-- {% if seg.carrier.marketingLogo %}<img src="{{ seg.carrier.marketingLogo }}" width="32" height="32" /> {% endif %}**{{ seg.carrier.marketingName }}** · {{ seg.originCode }} → {{ seg.destinationCode }}
-  - 🛫 {{ seg.departureTime }} · 🛬 {{ seg.arrivalTime }} · ⏱ {{ seg.duration.minutes // 60 }}h {{ seg.duration.minutes % 60 }}m
-{% endfor %}
-{% if offer.terms and offer.terms.refundable %}· ✅ Refundable{% endif %}
-
-{% endfor %}
-
-Pick a number to see details or book.
+````markdown
+```artifact
+{"artifact":"<artifact_path>","template":"flight-booking:flight-list","context":{"origin":"<ORIGIN>","destination":"<DEST>","outbound_date":"<YYYY-MM-DD>"}}
+```
 ````
 
 After rendering, **ask the user** which offer they want (by number). Wait for their answer before freezing a quote. Never assume a choice.
@@ -118,6 +108,18 @@ List the user's persisted bookings (paginated, 1-indexed `page`/`page_size`):
 curl -s "https://402.blockvault.ai/api/v1/travel/bookings?page=1&page_size=20" \
   -H "Authorization: Bearer {{DELEGATE_JWT}}"
 ```
+
+## Follow-up questions (sub-agent reader)
+
+When the user asks a follow-up about the rendered results ("which flight is nonstop?", "show only morning departures"), do **not** re-read the whole artifact in the main conversation. Spawn a sub-agent to answer from the artifact:
+
+Call `spawn_subagents` with one task:
+
+- **tasks**: Array, Required. One element:
+  - **id**: `"flight_filter"`.
+  - **objective**: `"Answer this question from the artifact: <user question>. The artifact is at <artifact_path>."`.
+  - **instructions**: Use `text_editor` with `command: "query"` (JMESPath) or `command: "search"` to read only the relevant slice of the artifact — never load the whole file. Return a concise markdown answer.
+  - **output_format**: `"Markdown — a short answer plus the matching journey/offer names."`.
 
 ## Constraints
 

@@ -1,0 +1,22 @@
+<div class="artifact-swiper" data-swiper='{"slidesPerView":1.15,"spaceBetween":12,"pagination":true}'>
+  <div class="swiper-wrapper">
+    {% for j in data.journeys %}
+    {% set offer = j.offers[0] %}
+    <div class="swiper-slide">
+      <div class="artifact-flight-card">
+        <div class="artifact-flight-card__body">
+          <div class="artifact-flight-card__title">{{ loop.index }}. {{ j.segments[0].carrier.marketingName }}</div>
+          <div class="artifact-flight-card__meta">
+            <span class="artifact-badge">{{ offer.pricing.display.total }} {{ offer.pricing.display.currency }}</span>
+            {% if offer.terms and offer.terms.refundable %}<span class="artifact-meta">Refundable</span>{% endif %}
+          </div>
+          {% for seg in j.segments %}
+          <span class="artifact-meta">{{ seg.originCode }} → {{ seg.destinationCode }} · {{ seg.departureTime }} – {{ seg.arrivalTime }}</span>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="swiper-pagination"></div>
+</div>

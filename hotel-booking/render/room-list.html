@@ -1,0 +1,19 @@
+<div class="artifact-swiper" data-swiper='{"slidesPerView":1.15,"spaceBetween":12,"pagination":true}'>
+  <div class="swiper-wrapper">
+    {% for r in data.offers[0].rooms %}
+    <div class="swiper-slide">
+      <div class="artifact-room-card">
+        {% if r.photos and r.photos[0] %}<div class="artifact-room-card__media"><img src="{{ r.photos[0] }}" alt="{{ r.name }}" loading="lazy" decoding="async" referrerpolicy="no-referrer" /></div>{% elif data.hotels[0].main_photo %}<div class="artifact-room-card__media"><img src="{{ data.hotels[0].main_photo }}" alt="{{ r.name }}" loading="lazy" decoding="async" referrerpolicy="no-referrer" /></div>{% endif %}
+        <div class="artifact-room-card__body">
+          <strong>{{ loop.index }}. {{ r.name or 'Room' }}</strong>
+          <span>{{ r.price }} {{ context.currency }}</span>
+          {% if r.board %}<span>{{ r.board }}</span>{% endif %}
+          {% if r.refundable %}<span>refundable</span>{% endif %}
+          {% if r.amenities %}<span>{{ r.amenities | join(', ') }}</span>{% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="swiper-pagination"></div>
+</div>

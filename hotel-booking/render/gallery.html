@@ -1,0 +1,10 @@
+<div class="artifact-swiper artifact-swiper--images" data-swiper='{"nested":true,"pagination":true,"lazy":true}'>
+  <div class="swiper-wrapper">
+    {% for img in data.images %}
+    <div class="swiper-slide">
+      <img src="{{ img.url_hd or img.url }}" alt="{{ img.caption or data.name }}" loading="lazy" decoding="async" referrerpolicy="no-referrer" />
+    </div>
+    {% endfor %}
+  </div>
+  <div class="swiper-pagination"></div>
+</div>
