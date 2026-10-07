@@ -122,21 +122,17 @@ After rendering, **ask the user** which hotel they want (by number). Wait for th
 
 ## Step 2.1: Fetch the chosen hotel's rooms (hotel-scoped search)
 
-When the user picks a hotel, search its rooms with `POST /travel/search` scoped to that hotel (`hotel_ids`):
+When the user picks a hotel, search its rooms with `POST /travel/search` scoped to that hotel (`hotel_ids`). Pass the user's budget as `max_price` so the API returns only rooms within budget:
 
 ```bash
 curl -sS -X POST https://402.blockvault.ai/api/v1/travel/search \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer {{DELEGATE_JWT}}" \
-  -d '{"checkin":"<YYYY-MM-DD>","checkout":"<YYYY-MM-DD>","currency":"<CUR>","guest_nationality":"<CC>","occupancies":[{"adults":<n>,"children":[]}],"hotel_ids":["<hotelId>"],"limit":100,"offset":0}' \
+  -d '{"checkin":"<YYYY-MM-DD>","checkout":"<YYYY-MM-DD>","currency":"<CUR>","guest_nationality":"<CC>","occupancies":[{"adults":<n>,"children":[]}],"hotel_ids":["<hotelId>"],"limit":100,"offset":0,"max_price":<budget>}' \
   -o <hotelId>-<checkin>-<checkout>.json
 ```
 
-The response returns `offers[]` (one per hotel) with `rooms[]` — each room has a short `offerId`, `price`, `name`, `board`, `refundable`, `maxOccupancy`, `adultCount`, `childCount`, plus `photos` (list of URLs), `amenities` (list of names) and `bedTypes` (list of names) merged from the hotel detail record.
-
-Then compute the hotel's price range from the response: `min = min(r.price for r in rooms)`, `max = max(r.price for r in rooms)`. **Ask the user for a min and max within those bounds** before rendering — a hotel can return hundreds of room rates. Ask one question: "Rooms at <hotel> range from $<min> to $<max>. What's your price range? (e.g. $100–$200, or 'all')".
-
-Then filter `rooms` to the range and **cap the list** — never render more than ~15 rooms. If more match, show the cheapest 15 and say so.
+The response returns `offers[]` (one per hotel) with `rooms[]` — each room has a short `offerId`, `price`, `name`, `board`, `refundable`, `maxOccupancy`, `adultCount`, `childCount`, plus `photos` (list of URLs), `amenities` (list of names) and `bedTypes` (list of names) merged from the hotel detail record. Rooms are already filtered to the budget (`max_price`).
 
 The `bash` result includes `artifact_path` (from `-o`). **Do NOT read the JSON.** Emit an ```artifact fence with template `hotel-booking:room-list` (renders `data.offers[0].rooms` as a swipeable card deck, each card showing the room's first photo, name, price, board, refundability and amenities).
 
@@ -146,8 +142,7 @@ The `bash` result includes `artifact_path` (from `-o`). **Do NOT read the JSON.*
 ```
 ````
 
-- Filter `rooms` client-side by the user's min/max before rendering (the server's `min_price`/`max_price` filter hotels, not individual rooms).
-- If the range yields nothing, widen it or show the nearest 3 rooms and say so.
+- If the user gave no budget, omit `max_price` and the API returns all rooms.
 - After rendering, **ask the user** which room they want (by number). Wait for their answer.
 
 **Never print `offerId` values.** They are short opaque tokens — keep them in memory, keyed by the hotel/room number you showed the user. When the user picks "hotel 2, room 1", look up that room's `offerId` from the search response and use it in the quote call.
