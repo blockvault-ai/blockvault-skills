@@ -20,7 +20,7 @@ Discover and recommend the best Uniswap liquidity pools to invest in, then open 
 - **Do NOT spawn subagents.** Run the discovery yourself, directly. Subagents loop and duplicate `pool_info` calls.
 - **Discovery is one call.** Use `GET /pools/recommend` — the server already discovers, scores, and ranks the best pools (cached in Redis). Do NOT probe `tokenlist` + `pool_info` yourself.
 - Detect the user's language and reply in that language.
-- Render results as Markdown tables, never raw JSON.
+- Render results as a card deck via the ```artifact fence — never dump raw JSON.
 - Lead with the **recommendation** (best pool + why), not technical fields.
 
 ## API endpoints
@@ -136,10 +136,10 @@ Follow all steps silently. DO NOT OMIT ANY STEP.
 
 1. **Read the wallet** (Address resolution above): get `supported_blockchains` + `get_assets`.
 
-2. **Get the ranked pools in one call**:
+2. **Get the ranked pools in one call** (save to an artifact, do NOT read the JSON):
 
    ```bash
-   curl -sS "https://402.blockvault.ai/api/v1/uniswap/pools/recommend"
+   curl -sS "https://402.blockvault.ai/api/v1/uniswap/pools/recommend" -o pools.json
    ```
 
    Response: `{ "generatedAt": "<ISO-8601>", "pools": [ { "chainId", "chain", "token0", "token1", "token0Address", "token1Address", "logoURI0", "logoURI1", "protocol", "fee", "feePct", "poolReferenceIdentifier", "tickSpacing", "currentTick", "poolLiquidity", "apy", "risk", "score", "reason" } ] }`.
@@ -151,9 +151,9 @@ Follow all steps silently. DO NOT OMIT ANY STEP.
    - `risk` is one of `Low risk` / `Medium risk` / `Higher risk`; `score` is the composite 0-100 ranking.
    - To narrow to one chain, add `?chainId=<CHAIN_ID>` (1, 137, or 8453).
 
-3. **Filter to the wallet's chains and holdings.** Keep only pools whose `chainId` is in `supported_blockchains`. Prefer pools whose tokens the user already holds (no swap needed to enter). If the user holds only one side of a pair, note that the other side will be bought automatically when the position is created.
+3. **Render the pools as a card deck.** Emit an ```artifact fence with template `uniswap-pools:pool-list` (renders `data.pools` as a swipeable card deck). Pass the user's held token symbols in `context.holdings` (from `get_assets` in step 1) so cards mark "✓ you hold X". Do NOT re-list the pools in Markdown — the card deck IS the list.
 
-4. **Present the recommendation and ask ONE question.** Render the ranked pools with the template in the Rendering section, then ask in plain text which pool and how much. Do not ask about tokens, chains, fee tiers, or price ranges — you have already resolved them. Wait for the user's answer before executing.
+4. **Add a one-line recommendation, then ask ONE question.** After the fence, write **My pick:** <pool> — <reason>, then ask in plain text which pool and how much. Do not ask about tokens, chains, fee tiers, or price ranges — you have already resolved them. Wait for the user's answer before executing.
 
 ## Open position flow
 
@@ -194,23 +194,19 @@ Follow all steps silently. DO NOT OMIT ANY STEP.
 
 ## Rendering
 
-**Pool recommendation:**
+**Pool recommendation** (card deck):
 
-````jinja
-## 💧 Best liquidity pools for you
+Call the discovery endpoint with `-o pools.json`. The `bash` result includes `artifact_path`. **Do NOT read the JSON.** Emit an ```artifact fence with template `uniswap-pools:pool-list` (renders `data.pools` as a swipeable card deck with APY, risk, fee tier, score, and a "✓ you hold X" marker for tokens in `context.holdings`).
 
-{% for p in pools %}
-### {{ loop.index }}. {% if p.logoURI0 %}<img src="{{ p.logoURI0 }}" width="24" height="24" /> {% endif %}{{ p.token0 }}/{{ p.token1 }}{% if p.logoURI1 %} <img src="{{ p.logoURI1 }}" width="24" height="24" />{% endif %} on {{ p.chain }} — {{ p.risk }}
-- **APY**: {% if p.apy is not none %}{{ p.apy }}%{% else %}n/a{% endif %} · **Fee tier**: {{ p.fee_pct }}% · **Score**: {{ p.score }}/100
-- **Why**: {{ p.reason }}
-{% endfor %}
-
-**My recommendation**: {{ recommendation }}
-
-Which pool would you like to invest in, and how much? (e.g. "USDC/ETH on Base, 500 USDC")
+````markdown
+```artifact
+{"artifact":"<artifact_path>","template":"uniswap-pools:pool-list","context":{"holdings":["USDC","WETH"]}}
+```
 ````
 
-**Token logos:** each pool carries `logoURI0` and `logoURI1` — the `logoURI` from the `/pools/recommend` response, mapped by token symbol. Guard every `<img>` with `{% if %}` so a missing logo never breaks the render. Do NOT use a symbol-keyed CDN — use the real `logoURI` from the API.
+After rendering, add a one-line recommendation (**My pick:** …), then ask the user which pool and how much (by number).
+
+**Token logos:** each pool carries `logoURI0` and `logoURI1` — the `logoURI` from the `/pools/recommend` response. The template guards every `<img>` with `{% if %}` so a missing logo never breaks the render. Do NOT use a symbol-keyed CDN — use the real `logoURI` from the API.
 
 ## Constraints
 
