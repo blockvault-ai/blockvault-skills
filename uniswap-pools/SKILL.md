@@ -18,7 +18,7 @@ Discover and recommend the best Uniswap liquidity pools to invest in, then open 
 - **Discover pools autonomously.** Never ask the user for tokens, chains, fee tiers, or price ranges — resolve them from the wallet and the market yourself.
 - **Use `bash` for API calls.** Execute `curl` commands against the BlockVault Uniswap API — never invent responses.
 - **Do NOT spawn subagents.** Run the discovery yourself, directly. Subagents loop and duplicate `pool_info` calls.
-- **Bound the search.** Query at most ~10 pairs total, then stop and rank. Never retry a pair that already failed.
+- **Discovery is one call.** Use `GET /pools/recommend` — the server already discovers, scores, and ranks the best pools (cached in Redis). Do NOT probe `tokenlist` + `pool_info` yourself.
 - Detect the user's language and reply in that language.
 - Render results as Markdown tables, never raw JSON.
 - Lead with the **recommendation** (best pool + why), not technical fields.
@@ -29,19 +29,14 @@ Base URL: `https://402.blockvault.ai`
 Prefix: `/api/v1/uniswap`
 
 ```bash
-# GET top tokens by TVL on a chain
-curl -sS "https://402.blockvault.ai/api/v1/uniswap/tokenlist?sort=tvl&limit=10&chainId=<CHAIN_ID>"
+# GET the best liquidity pools (server-side discovery + ranking, cached in Redis)
+curl -sS "https://402.blockvault.ai/api/v1/uniswap/pools/recommend"
 
-# GET top tokens by 24h volume on a chain
-curl -sS "https://402.blockvault.ai/api/v1/uniswap/tokenlist?sort=volume_24h&limit=10&chainId=<CHAIN_ID>"
+# GET the best pools on a single chain
+curl -sS "https://402.blockvault.ai/api/v1/uniswap/pools/recommend?chainId=<CHAIN_ID>&limit=5"
 
 # GET the wallet's LP positions (read on-chain)
 curl -sS "https://402.blockvault.ai/api/v1/uniswap/lp/positions/<ADDRESS>"
-
-# POST pool state (liquidity, fee, price) for a token pair
-curl -sS -X POST "https://402.blockvault.ai/api/v1/uniswap/lp/pool_info" \
-  -H "Content-Type: application/json" \
-  -d '{"protocol":"V3","poolParameters":{"tokenAddressA":"<ADDRESS_A>","tokenAddressB":"<ADDRESS_B>","fee":<FEE>},"chainId":<CHAIN_ID>}'
 
 # POST check LP token approval (pass BOTH tokens of the pair)
 curl -sS -X POST "https://402.blockvault.ai/api/v1/uniswap/lp/check_approval" \
@@ -78,9 +73,9 @@ curl -sS -X POST "https://402.blockvault.ai/api/v1/uniswap/lp/claim_fees" \
 - Replace `<CHAIN_ID>` with `1` (Ethereum), `137` (Polygon), or `8453` (Base).
 - `amount` is a **string in decimal units** (e.g. `"100.5"`), converted to wei server-side.
 - `fee` is in hundredths of a basis point: `100` = 0.01%, `500` = 0.05%, `3000` = 0.3%, `10000` = 1%.
-- **Use `tickBounds` (integers), NOT `priceBounds`.** The upstream `priceBounds` field is broken and returns `"tickPrice" does not match any of the allowed types`. `tickBounds` takes raw tick integers `{ "tickLower": <int>, "tickUpper": <int> }` and works. Derive ticks from the pool's `currentTick` and `tickSpacing` (both returned by `pool_info`): pick `tickLower`/`tickUpper` as multiples of `tickSpacing` straddling `currentTick` (e.g. currentTick −200·spacing to +200·spacing for a wide range, or ±20·spacing for a tight range).
-- **`poolReference` MUST be the `poolReferenceIdentifier` from `pool_info`** for that exact pair + fee tier. Never guess or reuse a pool address from another pair.
-- **`walletAddress` MUST be the user's wallet address from `get_assets`** (the `address` field of an asset), never a token address from the `tokenlist` or `pool_info` response.
+- **Use `tickBounds` (integers), NOT `priceBounds`.** The upstream `priceBounds` field is broken and returns `"tickPrice" does not match any of the allowed types`. `tickBounds` takes raw tick integers `{ "tickLower": <int>, "tickUpper": <int> }` and works. Derive ticks from the pool's `currentTick` and `tickSpacing` (both returned by `/pools/recommend`): pick `tickLower`/`tickUpper` as multiples of `tickSpacing` straddling `currentTick` (e.g. currentTick −200·spacing to +200·spacing for a wide range, or ±20·spacing for a tight range).
+- **`poolReference` MUST be the `poolReferenceIdentifier` from `/pools/recommend`** for that exact pair + fee tier. Never guess or reuse a pool address from another pair.
+- **`walletAddress` MUST be the user's wallet address from `get_assets`** (the `address` field of an asset), never a token address from the `/pools/recommend` response.
 - Mutating endpoints (`check_approval`, `create`, `create_classic`, `increase`, `decrease`, `claim_fees`) return a signable envelope with an ordered `transactions[]` list (approvals first, then the action), each entry `{ to, data, value, chainId }`. The `bash` tool auto-detects these envelopes and signs+broadcasts each transaction in order. If auto-detection does not fire, sign manually with `run_js` → `sign_transaction` using each returned `to`, `data`, and the matching `blockchain` (resolved from `chainId`).
 - **Always set `simulateTransaction: true`** on mutating LP calls. The API simulates the transaction on-chain before returning it. If the simulation fails, the response contains an error like `"Fail with error 'STF'"` (Simulation Transaction Failed) or a `txFailureReason` — **do NOT sign or broadcast in that case**. Only proceed when the response returns a clean `transactions[]` envelope with no simulation error.
 
@@ -127,7 +122,7 @@ Call `run_js` with:
 
 Note each asset's `symbol`, `blockchain`, and `balance`. These holdings are the natural LP candidates (the user already owns them), and they tell you which chains to search.
 
-**The wallet address is the `address` field of an asset** (e.g. `0x…` on the target chain). Use it verbatim as `walletAddress` in every mutating call. Never use a token `address` from the `tokenlist` or `pool_info` response as `walletAddress` — those are token contracts, not the wallet.
+**The wallet address is the `address` field of an asset** (e.g. `0x…` on the target chain). Use it verbatim as `walletAddress` in every mutating call. Never use a token `address` from the `/pools/recommend` response as `walletAddress` — those are token contracts, not the wallet.
 
 Also call `run_js` with:
 - **function**: `"supported_blockchains"`
@@ -141,51 +136,24 @@ Follow all steps silently. DO NOT OMIT ANY STEP.
 
 1. **Read the wallet** (Address resolution above): get `supported_blockchains` + `get_assets`.
 
-2. **Discover top tokens** on each supported chain that is Ethereum, Base, or Polygon:
+2. **Get the ranked pools in one call**:
 
    ```bash
-   curl -sS "https://402.blockvault.ai/api/v1/uniswap/tokenlist?sort=tvl&limit=10&chainId=<CHAIN_ID>"
-   curl -sS "https://402.blockvault.ai/api/v1/uniswap/tokenlist?sort=volume_24h&limit=10&chainId=<CHAIN_ID>"
+   curl -sS "https://402.blockvault.ai/api/v1/uniswap/pools/recommend"
    ```
 
-   Response: `{ "tokens": [ { "symbol", "name", "address", "chainId", "decimals", "logoURI", ... } ] }`. This gives the highest-liquidity and highest-volume tokens per chain — the building blocks of the best pools.
+   Response: `{ "generatedAt": "<ISO-8601>", "pools": [ { "chainId", "chain", "token0", "token1", "token0Address", "token1Address", "logoURI0", "logoURI1", "protocol", "fee", "feePct", "poolReferenceIdentifier", "tickSpacing", "currentTick", "poolLiquidity", "apy", "risk", "score", "reason" } ] }`.
 
-3. **Build candidate pairs** in this priority order (skip any pair whose tokens do not exist on that chain):
-
-   1. **Stable/stable** (near-zero impermanent loss): USDC/USDT, USDC/DAI, USDT/DAI.
-   2. **Stable/blue-chip** (high volume, moderate IL): USDC/ETH, USDC/WETH, USDC/WBTC, USDT/ETH.
-   3. **Blue-chip/blue-chip**: ETH/WBTC, WETH/WBTC.
-   4. **User's holdings × stablecoin/native**: for each token the user holds with a balance, pair it with USDC and with the chain's native (ETH/WETH).
-
-4. **Fetch pool state** for each pair with the `pool_info` endpoint. V3 requires `fee`, so query the most likely fee tier first and fall back if the result is empty:
-
-   - Stable/stable → try `fee: 100`, then `500`.
-   - Stable/blue-chip and blue-chip/blue-chip → try `fee: 500`, then `3000`, then `10000`.
-
-   Response: `{ "pools": [ { "poolReferenceIdentifier", "poolProtocol", "tokenAddressA", "tokenAddressB", "fee", "tickSpacing", "chainId", "tokenDecimalsA", "tokenDecimalsB", "poolLiquidity", "sqrtRatioX96", "currentTick", "protocolFee" } ] }`.
-
+   - The server already discovered, scored (0-100), and ranked the pools across Ethereum, Base, and Polygon. Do NOT call `tokenlist` or `pool_info` yourself.
    - `poolReferenceIdentifier` is the pool address (V3) — use it as `poolReference` when creating a position.
    - `poolLiquidity` is the pool's depth (higher = deeper, safer, less slippage).
-   - Spot price ≈ `(sqrtRatioX96 / 2^96)²` token1 per token0, adjusted by `10^(tokenDecimalsA - tokenDecimalsB)`. If the exact price is unclear, present liquidity + fee tier + volume instead — the recommendation does not depend on an exact price.
-   - An empty `pools` array means that pair/fee does not exist on that chain — try the next fee tier or drop the pair.
-   - **A `404` with `"Decimals not available"` means the token is not in Uniswap's registry.** Drop that pair immediately — do NOT retry it with the token order swapped, and do NOT try other fee tiers for it. Move on to the next pair.
-   - **Stop after ~10 pairs.** Once you have 3–5 pools with real `poolLiquidity`, stop querying and rank them. Do not keep probing pairs.
+   - `apy` is the **7-day fee APY** (annualized, as a percentage — e.g. `12.5` = 12.5%), sourced from DefiLlama's `apyBase7d`. It is the stable, cross-checkable fee yield (excludes rewards and impermanent loss). `null` when DefiLlama does not track the pool. Lead with this number — it is what the user earns.
+   - `risk` is one of `Low risk` / `Medium risk` / `Higher risk`; `score` is the composite 0-100 ranking.
+   - To narrow to one chain, add `?chainId=<CHAIN_ID>` (1, 137, or 8453).
 
-5. **Score and rank** each pool 0–100 across three dimensions:
+3. **Filter to the wallet's chains and holdings.** Keep only pools whose `chainId` is in `supported_blockchains`. Prefer pools whose tokens the user already holds (no swap needed to enter). If the user holds only one side of a pair, note that the other side will be bought automatically when the position is created.
 
-   - **Liquidity depth (0–40)**: the deepest `poolLiquidity` among candidates scores 40; scale the rest proportionally.
-   - **Fee income potential (0–30)**: higher fee tier + higher token 24h volume (from step 2) = more fees. A 500-fee stable pair with huge volume scores high; a 10000-fee exotic with tiny volume scores low.
-   - **Impermanent-loss safety (0–30)**: stable/stable = 30; stable/blue-chip = 20; blue-chip/blue-chip = 15; volatile/volatile = 5.
-
-   Rank by total score. Keep the top 3–5 pools. Group them by risk profile:
-
-   - **Low risk** — stable/stable pairs (near-zero IL, steady but modest yield).
-   - **Medium risk** — stable/blue-chip pairs (higher yield, some IL).
-   - **Higher risk** — blue-chip/blue-chip or volatile pairs (highest yield, real IL).
-
-   Prefer pools whose tokens the user already holds (no swap needed to enter). If the user holds only one side of a pair, note that the other side will be bought automatically when the position is created.
-
-6. **Present the recommendation and ask ONE question.** Render the ranked pools with the template in the Rendering section, then ask in plain text which pool and how much. Do not ask about tokens, chains, fee tiers, or price ranges — you have already resolved them. Wait for the user's answer before executing.
+4. **Present the recommendation and ask ONE question.** Render the ranked pools with the template in the Rendering section, then ask in plain text which pool and how much. Do not ask about tokens, chains, fee tiers, or price ranges — you have already resolved them. Wait for the user's answer before executing.
 
 ## Open position flow
 
@@ -197,7 +165,7 @@ Follow all steps silently. DO NOT OMIT ANY STEP.
 
 3. Check approval with the `check_approval` endpoint (`action: "create"`). **Pass BOTH tokens of the pair in `lpTokens`** — a V3 mint pulls both sides from the wallet, so both need approval to the NonfungiblePositionManager. If the response returns approval transactions, they are signed and broadcast automatically before the LP action. Do NOT skip this step: a missing approval on either token makes the mint revert on-chain.
 
-4. Create the position with `simulateTransaction: true`, using **`tickBounds`** (not `priceBounds`). Derive the ticks from the pool's `currentTick` and `tickSpacing` (from `pool_info`): pick `tickLower`/`tickUpper` as multiples of `tickSpacing` straddling `currentTick`. For a stable pair use a tight range (±20·spacing); for a volatile pair use a wide range (±200·spacing). For a stable/stable pair you may instead use a full-range V2 position (`create_classic`).
+4. Create the position with `simulateTransaction: true`, using **`tickBounds`** (not `priceBounds`). Derive the ticks from the pool's `currentTick` and `tickSpacing` (from `/pools/recommend`): pick `tickLower`/`tickUpper` as multiples of `tickSpacing` straddling `currentTick`. For a stable pair use a tight range (±20·spacing); for a volatile pair use a wide range (±200·spacing). For a stable/stable pair you may instead use a full-range V2 position (`create_classic`).
 
    - **V3** — *concentrated liquidity*. You provide both tokens and choose a **price range** (`priceBounds` → `tickLower`/`tickUpper`). Your liquidity only earns fees while the price stays in that range; outside it you earn nothing until the price returns. Higher fee rewards at the cost of "out-of-range" risk. Each position is an ERC-721 NFT (`nftTokenId`).
    - **V4** — same concentrated model **plus hooks**. Hooks are contracts that add custom logic (dynamic fees, custom curves). Pools are identified by `(token0, token1, fee, tickSpacing, hooks)` instead of just `(token0, token1, fee)` as in V3. `batchPermitData` covers the batched Permit2 for V4.
@@ -233,7 +201,7 @@ Follow all steps silently. DO NOT OMIT ANY STEP.
 
 {% for p in pools %}
 ### {{ loop.index }}. {% if p.logoURI0 %}<img src="{{ p.logoURI0 }}" width="24" height="24" /> {% endif %}{{ p.token0 }}/{{ p.token1 }}{% if p.logoURI1 %} <img src="{{ p.logoURI1 }}" width="24" height="24" />{% endif %} on {{ p.chain }} — {{ p.risk }}
-- **Fee tier**: {{ p.fee_pct }}% · **Liquidity**: {{ p.liquidity }} · **Score**: {{ p.score }}/100
+- **APY**: {% if p.apy is not none %}{{ p.apy }}%{% else %}n/a{% endif %} · **Fee tier**: {{ p.fee_pct }}% · **Score**: {{ p.score }}/100
 - **Why**: {{ p.reason }}
 {% endfor %}
 
@@ -242,7 +210,7 @@ Follow all steps silently. DO NOT OMIT ANY STEP.
 Which pool would you like to invest in, and how much? (e.g. "USDC/ETH on Base, 500 USDC")
 ````
 
-**Token logos:** each pool carries `logoURI0` and `logoURI1` — the `logoURI` from the `tokenlist` response (step 2), mapped by token symbol. Guard every `<img>` with `{% if %}` so a missing logo never breaks the render. Do NOT use a symbol-keyed CDN — use the real `logoURI` from the API.
+**Token logos:** each pool carries `logoURI0` and `logoURI1` — the `logoURI` from the `/pools/recommend` response, mapped by token symbol. Guard every `<img>` with `{% if %}` so a missing logo never breaks the render. Do NOT use a symbol-keyed CDN — use the real `logoURI` from the API.
 
 ## Constraints
 
@@ -250,12 +218,12 @@ Which pool would you like to invest in, and how much? (e.g. "USDC/ETH on Base, 5
 - **Verify the user holds BOTH tokens of the pair before `/lp/create`.** A position needs both sides; if one is missing, offer to swap into it first (via `blockswap`) instead of opening a position that will revert.
 - Discover pools autonomously — never ask the user for tokens, chains, fee tiers, or price ranges.
 - Do NOT spawn subagents; run discovery directly. Query at most ~10 pairs, never retry a failed pair, and stop once you have 3–5 ranked pools.
-- Fetch `/lp/pool_info` and call `/lp/check_approval` before creating/increasing/decreasing positions.
+- Fetch `/pools/recommend` (for `poolReferenceIdentifier`, `currentTick`, `tickSpacing`) and call `/lp/check_approval` before creating/increasing/decreasing positions.
 - **`check_approval` must include BOTH tokens of the pair in `lpTokens`** — a V3 mint pulls both sides, so both need approval. Missing approval on either token reverts the mint on-chain.
 - Always set `simulateTransaction: true` on mutating LP calls and check the result before signing. If the response contains a simulation error (`"Fail with error 'STF'"` or `txFailureReason`), do NOT sign or broadcast — report the failure to the user instead.
 - `independentToken` is always `LPAmount { tokenAddress, amount }` with amount in **decimal** (e.g. `"100.5"`). Add `decimals` only for tokens outside the curated registry.
-- Use `tickBounds` (integers) for V3/V4 price ranges — `priceBounds` is broken upstream. Derive ticks from `pool_info` (`currentTick` + `tickSpacing`).
-- `poolReference` must be the `poolReferenceIdentifier` from `pool_info` for that exact pair + fee tier.
+- Use `tickBounds` (integers) for V3/V4 price ranges — `priceBounds` is broken upstream. Derive ticks from `/pools/recommend` (`currentTick` + `tickSpacing`).
+- `poolReference` must be the `poolReferenceIdentifier` from `/pools/recommend` for that exact pair + fee tier.
 - `walletAddress` must be the user's wallet address from `get_assets`, never a token address.
 - `poolParameters` on create-classic is `V2PoolParams`; use `NewPoolParams`/`ExistingPoolParams` for V3/V4 create.
 - `nftTokenId` is required for V3/V4 increase/decrease and omitted for V2.
