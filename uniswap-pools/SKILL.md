@@ -159,9 +159,10 @@ Follow all steps silently. DO NOT OMIT ANY STEP.
 
 1. Resolve the chosen pool to its `poolReferenceIdentifier` (pool address) and fee tier from the discovery flow.
 
-2. **Verify the user holds BOTH tokens of the pair.** A liquidity position requires both sides — the API computes the dependent token amount and the transaction pulls it from the wallet. If the user only holds one side (e.g. USDC but no WETH), the mint will revert on-chain. Check the balances from `get_assets` (Address resolution). If one side is missing:
-   - Tell the user plainly: "This pool needs both USDC and WETH. You have USDC but no WETH."
-   - Offer to swap half the held token into the missing side first (use the `blockswap` skill), then open the position. Do NOT call `/lp/create` until both tokens are present.
+2. **Verify the user holds BOTH tokens of the pair — this is a hard gate before ANY LP call.** A liquidity position requires both sides — the API computes the dependent token amount and the transaction pulls it from the wallet. Check the balances from `get_assets` (Address resolution) for BOTH symbols of the pair. If one side is missing (e.g. USDC but no WPOL):
+   - **Do NOT call `check_approval` or `/lp/create`.** Both will fail or revert — the wallet cannot mint a position with a token it does not hold.
+   - **Swap into the missing side first with `blockswap`.** Swap half of the held token into the missing token on the same chain, then re-check `get_assets`. Only proceed to step 3 once BOTH tokens show a non-zero balance.
+   - If the swap is not possible (no route, unsupported chain), tell the user plainly and stop — do not attempt the LP.
 
 3. Check approval with the `check_approval` endpoint (`action: "create"`). **Pass BOTH tokens of the pair in `lpTokens`** — a V3 mint pulls both sides from the wallet, so both need approval to the NonfungiblePositionManager. If the response returns approval transactions, they are signed and broadcast automatically before the LP action. Do NOT skip this step: a missing approval on either token makes the mint revert on-chain.
 
@@ -211,7 +212,7 @@ After rendering, add a one-line recommendation (**My pick:** …), then ask the 
 ## Constraints
 
 - Call `get_assets` and `supported_blockchains` to resolve the wallet and verify sufficient funds before any LP action.
-- **Verify the user holds BOTH tokens of the pair before `/lp/create`.** A position needs both sides; if one is missing, offer to swap into it first (via `blockswap`) instead of opening a position that will revert.
+- **Verify the user holds BOTH tokens of the pair before ANY LP call.** A position needs both sides; if one is missing, swap into it first (via `blockswap`) and re-check `get_assets` — never call `check_approval` or `/lp/create` with a missing side.
 - Discover pools autonomously — never ask the user for tokens, chains, fee tiers, or price ranges.
 - Do NOT spawn subagents; run discovery directly. Query at most ~10 pairs, never retry a failed pair, and stop once you have 3–5 ranked pools.
 - Fetch `/pools/recommend` (for `poolReferenceIdentifier`, `currentTick`, `tickSpacing`) and call `/lp/check_approval` before creating/increasing/decreasing positions.
