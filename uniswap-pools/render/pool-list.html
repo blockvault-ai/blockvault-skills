@@ -15,10 +15,12 @@
       <div class="artifact-pool-card">
         <div class="artifact-pool-card__body">
           <div class="artifact-pool-card__title" data-searchable>
-            {{ loop.index }}. {% if p.logoURI0 %}<img src="{{ p.logoURI0 }}" width="18" height="18" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" /> {% endif %}{{ p.token0 }}/{{ p.token1 }}{% if p.logoURI1 %} <img src="{{ p.logoURI1 }}" width="18" height="18" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />{% endif %} on {{ p.chain }}
+            {{ loop.index }}. {% if p.logoURI0 %}<img src="{{ p.logoURI0 }}" width="20" height="20" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" /> {% endif %}{{ p.token0 }}/{{ p.token1 }}{% if p.logoURI1 %} <img src="{{ p.logoURI1 }}" width="20" height="20" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />{% endif %} on {{ p.chain }}
+          </div>
+          <div class="artifact-pool-card__apy">
+            {% if p.apy is not none %}<span class="artifact-apy-value">{{ p.apy }}%</span><span class="artifact-apy-label">APY (7d)</span>{% else %}<span class="artifact-apy-value artifact-apy-value--na">APY n/a</span>{% endif %}
           </div>
           <div class="artifact-pool-card__meta">
-            {% if p.apy is not none %}<span class="artifact-badge" data-searchable>{{ p.apy }}% APY</span>{% endif %}
             <span class="artifact-badge artifact-badge--risk" data-searchable>{{ p.risk }}</span>
             <span class="artifact-meta" data-searchable>{{ p.feePct }}% fee</span>
             <span class="artifact-meta" data-searchable>Score {{ p.score }}/100</span>

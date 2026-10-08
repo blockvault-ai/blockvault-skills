@@ -144,12 +144,12 @@ Follow all steps silently. DO NOT OMIT ANY STEP.
 
    Response: `{ "generatedAt": "<ISO-8601>", "pools": [ { "chainId", "chain", "token0", "token1", "token0Address", "token1Address", "logoURI0", "logoURI1", "protocol", "fee", "feePct", "poolReferenceIdentifier", "tickSpacing", "currentTick", "poolLiquidity", "apy", "risk", "score", "reason" } ] }`.
 
-   - The server already discovered, scored (0-100), and ranked the pools across Ethereum, Base, and Polygon. Do NOT call `tokenlist` or `pool_info` yourself.
+   - The server already discovered, scored (0-100), and ranked the pools across Ethereum, Base, and Polygon (default 20 pools). Do NOT call `tokenlist` or `pool_info` yourself.
    - `poolReferenceIdentifier` is the pool address (V3) — use it as `poolReference` when creating a position.
    - `poolLiquidity` is the pool's depth (higher = deeper, safer, less slippage).
    - `apy` is the **7-day fee APY** (annualized, as a percentage — e.g. `12.5` = 12.5%), sourced from DefiLlama's `apyBase7d`. It is the stable, cross-checkable fee yield (excludes rewards and impermanent loss). `null` when DefiLlama does not track the pool. Lead with this number — it is what the user earns.
    - `risk` is one of `Low risk` / `Medium risk` / `Higher risk`; `score` is the composite 0-100 ranking.
-   - To narrow to one chain, add `?chainId=<CHAIN_ID>` (1, 137, or 8453).
+   - To narrow to one chain, add `?chainId=<CHAIN_ID>` (1, 137, or 8453). To get more/fewer, add `&limit=<N>` (1-50).
 
 3. **Render the pools as a card deck.** Emit an ```artifact fence with template `uniswap-pools:pool-list` (renders `data.pools` as a swipeable card deck). Pass the user's held token symbols in `context.holdings` (from `get_assets` in step 1) so cards mark "✓ you hold X". Do NOT re-list the pools in Markdown — the card deck IS the list.
 

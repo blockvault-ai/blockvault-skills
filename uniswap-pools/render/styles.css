@@ -104,6 +104,33 @@
   vertical-align: middle;
 }
 
+.artifact-pool-card__apy {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.artifact-apy-value {
+  color: #00ff94;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.artifact-apy-value--na {
+  color: #5f5f5f;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.artifact-apy-label {
+  color: #5f5f5f;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .artifact-pool-card__meta {
   display: flex;
   flex-wrap: wrap;
