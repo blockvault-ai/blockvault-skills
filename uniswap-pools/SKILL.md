@@ -14,7 +14,7 @@ Discover and recommend the best Uniswap liquidity pools to invest in, then open 
 
 ## Instructions
 
-- **Get the address first.** Call `run_js` → `get_assets` with `{"hasBalance": true}` to obtain the user's real address and holdings before any API call.
+- **Get the address first.** Call `run_js` → `get_assets` with `{"hasBalance": true}` to obtain the user's real wallet address before any API call.
 - **Discover pools autonomously.** Never ask the user for tokens, chains, fee tiers, or price ranges — resolve them from the wallet and the market yourself.
 - **Use `bash` for API calls.** Execute `curl` commands against the BlockVault Uniswap API — never invent responses.
 - **Do NOT spawn subagents.** Run the discovery yourself, directly. Subagents loop and duplicate `pool_info` calls.
@@ -151,7 +151,7 @@ Follow all steps silently. DO NOT OMIT ANY STEP.
    - `risk` is one of `Low risk` / `Medium risk` / `Higher risk`; `score` is the composite 0-100 ranking.
    - To narrow to one chain, add `?chainId=<CHAIN_ID>` (1, 137, or 8453). To get more/fewer, add `&limit=<N>` (1-50).
 
-3. **Render the pools as a card deck.** Emit an ```artifact fence with template `uniswap-pools:pool-list` (renders `data.pools` as a swipeable card deck). Pass the user's held token symbols in `context.holdings` (from `get_assets` in step 1) so cards mark "✓ you hold X". Do NOT re-list the pools in Markdown — the card deck IS the list.
+3. **Render the pools as a card deck.** Emit an ```artifact fence with template `uniswap-pools:pool-list` (renders `data.pools` as a swipeable card deck). Do NOT re-list the pools in Markdown — the card deck IS the list.
 
 4. **Add a one-line recommendation, then ask ONE question.** After the fence, write **My pick:** <pool> — <reason>, then ask in plain text which pool and how much. Do not ask about tokens, chains, fee tiers, or price ranges — you have already resolved them. Wait for the user's answer before executing.
 
@@ -196,11 +196,11 @@ Follow all steps silently. DO NOT OMIT ANY STEP.
 
 **Pool recommendation** (card deck):
 
-Call the discovery endpoint with `-o pools.json`. The `bash` result includes `artifact_path`. **Do NOT read the JSON.** Emit an ```artifact fence with template `uniswap-pools:pool-list` (renders `data.pools` as a swipeable card deck with APY, risk, fee tier, score, and a "✓ you hold X" marker for tokens in `context.holdings`).
+Call the discovery endpoint with `-o pools.json`. The `bash` result includes `artifact_path`. **Do NOT read the JSON.** Emit an ```artifact fence with template `uniswap-pools:pool-list` (renders `data.pools` as a swipeable card deck with APY, risk, fee tier, and score).
 
 ````markdown
 ```artifact
-{"artifact":"<artifact_path>","template":"uniswap-pools:pool-list","context":{"holdings":["USDC","WETH"]}}
+{"artifact":"<artifact_path>","template":"uniswap-pools:pool-list"}
 ```
 ````
 

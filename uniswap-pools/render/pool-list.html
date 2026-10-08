@@ -9,7 +9,6 @@
 </div>
 <div class="artifact-swiper" data-swiper='{"slidesPerView":1.15,"spaceBetween":12,"pagination":true}'>
   <div class="swiper-wrapper">
-    {% set holdings = context.holdings or [] %}
     {% for p in data.pools %}
     <div class="swiper-slide" data-apy="{{ p.apy if p.apy is not none else -1 }}" data-score="{{ p.score }}" data-risk="{{ p.risk }}">
       <div class="artifact-pool-card">
@@ -25,12 +24,6 @@
             <span class="artifact-meta" data-searchable>{{ p.feePct }}% fee</span>
             <span class="artifact-meta" data-searchable>Score {{ p.score }}/100</span>
           </div>
-          {% if p.token0 in holdings or p.token1 in holdings %}
-          <div class="artifact-pool-card__holdings">
-            {% if p.token0 in holdings %}<span class="artifact-hold">✓ you hold {{ p.token0 }}</span>{% endif %}
-            {% if p.token1 in holdings %}<span class="artifact-hold">✓ you hold {{ p.token1 }}</span>{% endif %}
-          </div>
-          {% endif %}
           <div class="artifact-pool-card__reason" data-searchable>{{ p.reason }}</div>
         </div>
       </div>
