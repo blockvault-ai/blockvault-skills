@@ -28,12 +28,22 @@ curl -sS "https://402.blockvault.ai/api/v1/uniswap/lp/positions/<ADDRESS>"
 
 Fields: `token0/token1`, `fee`, `tick_lower/upper`, `amount0/amount1`, `tokens_owed0/1` (pending fees), `earned0/1`, `current_tick`, `in_range`. Resolve `token_id` from here.
 
-## Check approval (BOTH tokens of the pair)
+## Check approval
+
+**Create/increase** — approve BOTH tokens of the pair (with amounts):
 
 ```bash
 curl -sS -X POST "https://402.blockvault.ai/api/v1/uniswap/lp/check_approval" \
   -H "Content-Type: application/json" \
   -d '{"walletAddress":"<ADDRESS>","protocol":"V3","chainId":<CHAIN_ID>,"lpTokens":[{"tokenAddress":"<TOKEN0_ADDRESS>","amount":"<DECIMAL>"},{"tokenAddress":"<TOKEN1_ADDRESS>","amount":"<DECIMAL>"}],"action":"create"}'
+```
+
+**Decrease** — approve the NFT instead (no `lpTokens`):
+
+```bash
+curl -sS -X POST "https://402.blockvault.ai/api/v1/uniswap/lp/check_approval" \
+  -H "Content-Type: application/json" \
+  -d '{"walletAddress":"<ADDRESS>","protocol":"V3","chainId":<CHAIN_ID>,"nftTokenId":"<TOKEN_ID>","action":"decrease"}'
 ```
 
 ## Create V3/V4 (tickBounds, NOT priceBounds)

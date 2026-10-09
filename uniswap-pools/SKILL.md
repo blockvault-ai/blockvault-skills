@@ -101,7 +101,7 @@ Always `simulateTransaction:true`.
 ### Withdraw / exit
 
 1. `GET /lp/positions/<ADDRESS>` → resolve `token_id`.
-2. `check_approval` `action:"decrease"` (V3/V4 NFT approval).
+2. `check_approval` `action:"decrease"` with `nftTokenId` (V3/V4 NFT approval — **no `lpTokens`**). See `reference/endpoints.md`.
 3. `decrease` `simulateTransaction:true`, `liquidityPercentageToDecrease:100` → check simulation → sign.
 
 ## Rendering
