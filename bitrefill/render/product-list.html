@@ -1,0 +1,40 @@
+<div class="artifact-toolbar">
+  <input class="artifact-search" data-search type="search" placeholder="Search products..." />
+  <select class="artifact-sort" data-sort>
+    <option value="">Sort by</option>
+    <option value="name:asc">Name: A to Z</option>
+    <option value="country:asc">Country: A to Z</option>
+  </select>
+  <select class="artifact-filter" data-filter="type">
+    <option value="">All types</option>
+    <option value="giftcards">Gift cards</option>
+    <option value="refills">Refills</option>
+    <option value="esim">eSIM</option>
+  </select>
+</div>
+<div class="artifact-swiper" data-swiper='{"slidesPerView":1.15,"spaceBetween":12,"pagination":true}'>
+  <div class="swiper-wrapper">
+    {% for p in data.products %}
+    <div class="swiper-slide" data-name="{{ p.name }}" data-country="{{ p.countries | join(', ') }}" data-type="{{ p.type }}">
+      <div class="artifact-product-card">
+        <div class="artifact-product-card__head">
+          <span class="artifact-index">{{ loop.index }}</span>
+          <div class="artifact-product-card__title" data-searchable>{{ p.name }}</div>
+        </div>
+        <div class="artifact-product-card__meta">
+          <span class="artifact-currency" data-searchable>{{ p.currency }}</span>
+          {% if p.countries %}<span class="artifact-meta artifact-meta--flag" data-searchable>🌍 {{ p.countries | join(', ') }}</span>{% endif %}
+        </div>
+        {% if p.categories %}
+        <div class="artifact-chips">
+          {% for c in p.categories %}
+          <span class="artifact-chip" data-searchable>{{ c }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="swiper-pagination"></div>
+</div>

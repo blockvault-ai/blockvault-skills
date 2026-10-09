@@ -239,6 +239,7 @@ These are dispatched through the `run_js` universal handler:
 | Tool name | Category | Description |
 |---|---|---|
 | `get_assets` | Wallet | Get user's assets (optionally filtered by balance) |
+| `add_asset` | Wallet | Register a token so it appears in `get_assets` (no balance created) |
 | `get_balance` | Wallet | Get balance for specific asset |
 | `get_transaction_history` | Wallet | Fetch transaction history |
 | `receive_crypto` | Wallet | Generate receive address |

@@ -1,0 +1,31 @@
+<div class="artifact-toolbar">
+  <input class="artifact-search" data-search type="search" placeholder="Search positions..." />
+  <select class="artifact-sort" data-sort>
+    <option value="">Sort by</option>
+    <option value="apy:desc">APY: high to low</option>
+    <option value="staked:desc">Staked: high to low</option>
+    <option value="name:asc">Asset: A to Z</option>
+  </select>
+</div>
+<div class="artifact-swiper" data-swiper='{"slidesPerView":1.15,"spaceBetween":12,"pagination":true}'>
+  <div class="swiper-wrapper">
+    {% for p in data.positions %}
+    <div class="swiper-slide" data-apy="{{ p.apy }}" data-staked="{{ p.staked }}" data-name="{{ p.symbol }}">
+      <div class="artifact-position-card">
+        <div class="artifact-position-card__body">
+          <div class="artifact-position-card__title" data-searchable>{{ loop.index }}. {{ p.symbol }} on {{ p.chain }}</div>
+          <div class="artifact-position-card__meta">
+            <span class="artifact-badge" data-searchable>{{ p.apy }}% APY</span>
+          </div>
+          <div class="artifact-position-card__stats">
+            <span class="artifact-meta" data-searchable>Staked: {{ p.staked }} {{ p.symbol }}</span>
+            <span class="artifact-meta" data-searchable>Rewards: {{ p.rewards }} {{ p.symbol }}</span>
+            <span class="artifact-meta" data-searchable>Est. monthly: ~{{ p.monthly }} {{ p.symbol }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="swiper-pagination"></div>
+</div>

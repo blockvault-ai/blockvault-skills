@@ -1,19 +1,67 @@
+<div class="artifact-toolbar">
+  <input class="artifact-search" data-search type="search" placeholder="Search flights..." />
+  <select class="artifact-sort" data-sort>
+    <option value="">Sort by</option>
+    <option value="price:asc">Price: low to high</option>
+    <option value="price:desc">Price: high to low</option>
+    <option value="duration:asc">Duration: shortest first</option>
+    <option value="stops:asc">Stops: fewest first</option>
+    <option value="departure:asc">Departure: earliest first</option>
+  </select>
+  <select class="artifact-filter" data-filter="stops">
+    <option value="">All stops</option>
+    <option value="0">Nonstop only</option>
+    <option value="1">1 stop or fewer</option>
+    <option value="2">2 stops or fewer</option>
+  </select>
+</div>
 <div class="artifact-swiper" data-swiper='{"slidesPerView":1.15,"spaceBetween":12,"pagination":true}'>
   <div class="swiper-wrapper">
     {% for j in data.journeys %}
     {% set offer = j.offers[0] %}
-    <div class="swiper-slide">
+    {% set first = j.segments[0] %}
+    {% set total = offer.pricing.display.total %}
+    {% set currency = offer.pricing.display.currency %}
+    {% set minutes = j.totalDuration.minutes if j.totalDuration and j.totalDuration.minutes else 0 %}
+    {% set stops = j.stops if j.stops is not none else 0 %}
+    <div class="swiper-slide" data-price="{{ total }}" data-duration="{{ minutes }}" data-stops="{{ stops }}" data-departure="{{ first.departureTime }}">
       <div class="artifact-flight-card">
-        <div class="artifact-flight-card__body">
-          <div class="artifact-flight-card__title">{{ loop.index }}. {{ j.segments[0].carrier.marketingName }}</div>
-          <div class="artifact-flight-card__meta">
-            <span class="artifact-badge">{{ offer.pricing.display.total }} {{ offer.pricing.display.currency }}</span>
-            {% if offer.terms and offer.terms.refundable %}<span class="artifact-meta">Refundable</span>{% endif %}
+        <div class="artifact-flight-card__header">
+          {% if first.carrier.marketingLogo %}<img class="artifact-flight-card__logo" src="{{ first.carrier.marketingLogo }}" alt="{{ first.carrier.marketingName }}" loading="lazy" decoding="async" referrerpolicy="no-referrer" />{% endif %}
+          <div class="artifact-flight-card__title" data-searchable>{{ loop.index }}. {{ first.carrier.marketingName }}</div>
+          <span class="artifact-badge" data-searchable>{{ total }} {{ currency }}</span>
+        </div>
+        {% for seg in j.segments %}
+        <div class="artifact-flight-card__leg">
+          <div class="artifact-flight-card__route">
+            <span class="artifact-flight-card__airport" data-searchable>{{ seg.originCode }}</span>
+            <span class="artifact-flight-card__arrow">→</span>
+            <span class="artifact-flight-card__airport" data-searchable>{{ seg.destinationCode }}</span>
           </div>
-          {% for seg in j.segments %}
-          <span class="artifact-meta">{{ seg.originCode }} → {{ seg.destinationCode }} · {{ seg.departureTime }} – {{ seg.arrivalTime }}</span>
+          <div class="artifact-flight-card__meta">
+            <span class="artifact-meta" data-searchable>{{ seg.departureTime }} – {{ seg.arrivalTime }}</span>
+            {% if seg.duration and seg.duration.minutes %}<span class="artifact-meta" data-searchable>{{ (seg.duration.minutes / 60) | int }}h {{ seg.duration.minutes % 60 }}m</span>{% endif %}
+            {% if seg.carrier.marketingName %}<span class="artifact-meta" data-searchable>{{ seg.carrier.marketingName }}</span>{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+        <div class="artifact-flight-card__meta">
+          {% if stops == 0 %}<span class="artifact-meta" data-searchable>Nonstop</span>{% elif stops == 1 %}<span class="artifact-meta" data-searchable>1 stop</span>{% else %}<span class="artifact-meta" data-searchable>{{ stops }} stops</span>{% endif %}
+          {% if offer.fare and offer.fare.family %}<span class="artifact-meta" data-searchable>{{ offer.fare.family }}</span>{% endif %}
+          {% if offer.terms and offer.terms.refundable %}<span class="artifact-meta" data-searchable>Refundable</span>{% endif %}
+        </div>
+        {% if offer.baggage %}
+        <div class="artifact-flight-card__baggage">
+          {% if offer.baggage.hasCarryOnBag %}<span class="artifact-meta" data-searchable>Carry-on included</span>{% endif %}
+          {% if offer.baggage.hasCheckedBag %}<span class="artifact-meta" data-searchable>Checked bag included</span>{% endif %}
+          {% for b in offer.baggage.included %}
+          <span class="artifact-meta" data-searchable>{{ b.description }}</span>
+          {% endfor %}
+          {% for b in offer.baggage.paid %}
+          <span class="artifact-meta" data-searchable>{{ b.description }} (+{{ b.pieces }} paid)</span>
           {% endfor %}
         </div>
+        {% endif %}
       </div>
     </div>
     {% endfor %}

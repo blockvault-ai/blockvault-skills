@@ -1,0 +1,32 @@
+{% for o in data.orders %}
+<div class="artifact-detail-card">
+  <div class="artifact-detail-card__body">
+    <div class="artifact-detail-card__title">{{ o.product_name }} — {{ o.value }} {{ o.currency }}</div>
+    {% if o.redemption_info.code %}
+    <div class="artifact-detail-card__row">
+      <span class="artifact-meta">Code</span>
+      <span class="artifact-value artifact-code">{{ o.redemption_info.code }}</span>
+    </div>
+    {% endif %}
+    {% if o.redemption_info.pin %}
+    <div class="artifact-detail-card__row">
+      <span class="artifact-meta">PIN</span>
+      <span class="artifact-value artifact-code">{{ o.redemption_info.pin }}</span>
+    </div>
+    {% endif %}
+    {% if o.redemption_info.link %}
+    <div class="artifact-detail-card__row">
+      <span class="artifact-meta">Link</span>
+      <a class="artifact-value artifact-link" href="{{ o.redemption_info.link }}" target="_blank" rel="noopener">{{ o.redemption_info.link }}</a>
+    </div>
+    {% endif %}
+    {% if o.redemption_info.esim_install_link %}
+    <div class="artifact-detail-card__row">
+      <span class="artifact-meta">eSIM activation</span>
+      <a class="artifact-value artifact-link" href="{{ o.redemption_info.esim_install_link }}" target="_blank" rel="noopener">{{ o.redemption_info.esim_install_link }}</a>
+    </div>
+    {% endif %}
+    {% if o.redemption_info.instructions %}<div class="artifact-detail-card__desc">{{ o.redemption_info.instructions }}</div>{% endif %}
+  </div>
+</div>
+{% endfor %}

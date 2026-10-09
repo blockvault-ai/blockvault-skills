@@ -1,0 +1,35 @@
+<div class="artifact-detail-card">
+  <div class="artifact-detail-card__body">
+    <div class="artifact-detail-card__title">Invoice {{ data.id | truncate(16, true, '…') }}</div>
+    <div class="artifact-detail-card__meta">
+      <span class="artifact-badge">{{ data.payment_info.amount }} {{ data.payment_info.currency }}</span>
+      <span class="artifact-meta">{{ data.status }}</span>
+    </div>
+    <div class="artifact-detail-card__row">
+      <span class="artifact-meta">Method</span>
+      <span class="artifact-value">{{ data.payment_info.method }}</span>
+    </div>
+    {% if data.payment_info.address %}
+    <div class="artifact-detail-card__row">
+      <span class="artifact-meta">Address</span>
+      <span class="artifact-value">{{ data.payment_info.address | truncate(16, true, '…') }}</span>
+    </div>
+    {% endif %}
+    {% if data.expiration_minutes %}
+    <div class="artifact-detail-card__row">
+      <span class="artifact-meta">Expires in</span>
+      <span class="artifact-value">{{ data.expiration_minutes }} min</span>
+    </div>
+    {% endif %}
+    {% if data.orders %}
+    <div class="artifact-detail-card__orders">
+      {% for o in data.orders %}
+      <div class="artifact-detail-card__order">
+        <span class="artifact-value">{{ o.product_name }}</span>
+        <span class="artifact-meta">{{ o.value }} {{ o.currency }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>

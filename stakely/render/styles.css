@@ -1,5 +1,5 @@
-/* BlockVault artifact render — flight-booking cards & swipers.
- * Scoped to the .artifact-* classes emitted by flight-booking templates. */
+/* BlockVault artifact render — stakely cards & swipers.
+ * Scoped to the .artifact-* classes emitted by stakely templates. */
 
 .artifact-toolbar {
   display: flex;
@@ -71,32 +71,28 @@
   opacity: 1;
 }
 
-.artifact-flight-card {
+.artifact-position-card,
+.artifact-action-card {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   height: 100%;
   padding: 12px;
   border: 1px solid #222d30;
   border-radius: 20px;
   background: linear-gradient(180deg, #0c1f20 0%, #051015 100%);
+  overflow: hidden;
 }
 
-.artifact-flight-card__header {
+.artifact-position-card__body,
+.artifact-action-card__body {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.artifact-flight-card__logo {
-  width: 28px;
-  height: 28px;
-  object-fit: contain;
-  flex-shrink: 0;
-}
-
-.artifact-flight-card__title {
+.artifact-position-card__title,
+.artifact-action-card__title {
   color: #ffffff;
   font-weight: 600;
   font-size: 0.9rem;
@@ -105,62 +101,27 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  flex: 1 1 auto;
 }
 
-.artifact-flight-card__leg {
+.artifact-position-card__meta,
+.artifact-action-card__meta {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 8px 0;
-  border-top: 1px solid #1a2a2d;
-}
-
-.artifact-flight-card__leg:first-of-type {
-  border-top: none;
-  padding-top: 0;
-}
-
-.artifact-flight-card__route {
-  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
-.artifact-flight-card__airport {
-  color: #ffffff;
-  font-weight: 700;
-  font-size: 1.1rem;
-  letter-spacing: 0.02em;
+.artifact-position-card__stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
 }
 
-.artifact-flight-card__arrow {
+.artifact-action-card__tx {
   color: #00ff94;
-  font-weight: 600;
-}
-
-.artifact-flight-card__meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-.artifact-flight-card__segments {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding-top: 6px;
-  border-top: 1px solid #1a2a2d;
-}
-
-.artifact-flight-card__baggage {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  padding-top: 6px;
-  border-top: 1px solid #1a2a2d;
+  font-size: 0.72rem;
+  text-decoration: none;
 }
 
 .artifact-badge {
@@ -174,7 +135,6 @@
   font-size: 0.72rem;
   font-weight: 600;
   line-height: 1.4;
-  white-space: nowrap;
 }
 
 .artifact-meta {

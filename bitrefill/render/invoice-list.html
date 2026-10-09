@@ -1,0 +1,35 @@
+<div class="artifact-toolbar">
+  <input class="artifact-search" data-search type="search" placeholder="Search invoices..." />
+  <select class="artifact-sort" data-sort>
+    <option value="">Sort by</option>
+    <option value="created:desc">Newest first</option>
+    <option value="amount:desc">Amount: high to low</option>
+  </select>
+  <select class="artifact-filter" data-filter="status">
+    <option value="">All statuses</option>
+    <option value="complete">Complete</option>
+    <option value="pending">Pending</option>
+    <option value="unpaid">Unpaid</option>
+    <option value="payment_confirmed">Payment confirmed</option>
+  </select>
+</div>
+<div class="artifact-swiper" data-swiper='{"slidesPerView":1.15,"spaceBetween":12,"pagination":true}'>
+  <div class="swiper-wrapper">
+    {% for inv in data.invoices %}
+    <div class="swiper-slide" data-created="{{ inv.created_time }}" data-amount="{{ inv.payment_info.amount }}" data-status="{{ inv.status or inv.invoice_status }}" data-name="{{ inv.id }}">
+      <div class="artifact-invoice-card">
+        <div class="artifact-invoice-card__head">
+          <span class="artifact-index">{{ loop.index }}</span>
+          <div class="artifact-invoice-card__title" data-searchable>{{ inv.id | truncate(16, true, '…') }}</div>
+        </div>
+        <div class="artifact-invoice-card__amount" data-searchable>{{ inv.payment_info.amount }} <span class="artifact-currency">{{ inv.payment_info.currency }}</span></div>
+        <div class="artifact-invoice-card__meta">
+          <span class="artifact-status artifact-status--{{ inv.status or inv.invoice_status }}" data-searchable>{{ inv.status or inv.invoice_status }}</span>
+          <span class="artifact-meta" data-searchable>{{ inv.created_time }}</span>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="swiper-pagination"></div>
+</div>

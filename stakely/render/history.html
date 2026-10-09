@@ -1,0 +1,33 @@
+<div class="artifact-toolbar">
+  <input class="artifact-search" data-search type="search" placeholder="Search actions..." />
+  <select class="artifact-sort" data-sort>
+    <option value="">Sort by</option>
+    <option value="date:desc">Newest first</option>
+    <option value="type:asc">Type: A to Z</option>
+  </select>
+  <select class="artifact-filter" data-filter="type">
+    <option value="">All actions</option>
+    <option value="stake">Stake</option>
+    <option value="unstake">Unstake</option>
+    <option value="withdraw">Withdraw</option>
+  </select>
+</div>
+<div class="artifact-swiper" data-swiper='{"slidesPerView":1.15,"spaceBetween":12,"pagination":true}'>
+  <div class="swiper-wrapper">
+    {% for a in data.actions %}
+    <div class="swiper-slide" data-date="{{ a.date }}" data-type="{{ a.type }}" data-name="{{ a.type }}">
+      <div class="artifact-action-card">
+        <div class="artifact-action-card__body">
+          <div class="artifact-action-card__title" data-searchable>{{ loop.index }}. {{ a.type | capitalize }}</div>
+          <div class="artifact-action-card__meta">
+            <span class="artifact-badge" data-searchable>{{ a.amount }} {{ a.symbol }}</span>
+            <span class="artifact-meta" data-searchable>{{ a.date }}</span>
+          </div>
+          {% if a.txHash %}<a class="artifact-action-card__tx" href="{{ context.explorer }}/tx/{{ a.txHash }}" target="_blank" rel="noopener" data-searchable>{{ a.txHash | truncate(12, true, '…') }}</a>{% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="swiper-pagination"></div>
+</div>

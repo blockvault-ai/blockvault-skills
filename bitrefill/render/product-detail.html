@@ -1,0 +1,56 @@
+<div class="artifact-detail-card">
+  <div class="artifact-detail-card__body">
+    <div class="artifact-detail-card__title">{{ data.name }}</div>
+    <div class="artifact-detail-card__meta">
+      <span class="artifact-currency">{{ data.currency }}</span>
+      {% if data.country_code %}<span class="artifact-meta artifact-meta--flag">🌍 {{ data.country_code }}</span>{% endif %}
+      {% if data.ratings and data.ratings.rating_value %}
+      <span class="artifact-rating">★ {{ data.ratings.rating_value }} <span class="artifact-meta">({{ data.ratings.review_count }} reviews)</span></span>
+      {% endif %}
+    </div>
+    {% if data.subtitles %}<div class="artifact-detail-card__subtitle">{{ data.subtitles }}</div>{% endif %}
+    {% if data.descriptions %}<div class="artifact-detail-card__desc">{{ data.descriptions | safe }}</div>{% endif %}
+
+    {% if data.packages %}
+    <div class="artifact-swiper artifact-packages" data-swiper='{"slidesPerView":2.2,"spaceBetween":8,"autoplay":{"delay":2500,"disableOnInteraction":false}}'>
+      <div class="swiper-wrapper">
+        {% for pkg in data.packages %}
+        <div class="swiper-slide">
+          <div class="artifact-package">
+            <span class="artifact-package__value">{{ pkg.package_value }} {{ pkg.package_currency }}</span>
+            <span class="artifact-package__price">{{ pkg.payment_price }} {{ pkg.payment_currency }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if data.recipient_type %}
+    <div class="artifact-detail-card__row">
+      <span class="artifact-meta">Requires</span>
+      <span class="artifact-value">{{ data.recipient_type | replace('_', ' ') }}</span>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if data.reviews %}
+<div class="artifact-swiper artifact-reviews" data-swiper='{"slidesPerView":1.05,"spaceBetween":12,"pagination":true,"autoplay":{"delay":4000,"disableOnInteraction":false}}'>
+  <div class="swiper-wrapper">
+    {% for r in data.reviews %}
+    <div class="swiper-slide">
+      <div class="artifact-review-card">
+        <div class="artifact-review-card__head">
+          <span class="artifact-review-card__stars">{% for i in range(0, r.score) %}★{% endfor %}</span>
+          {% if r.author_name %}<span class="artifact-meta">{{ r.author_name }}</span>{% endif %}
+        </div>
+        {% if r.content %}<div class="artifact-review-card__body">{{ r.content }}</div>{% endif %}
+        {% if r.date %}<span class="artifact-meta">{{ r.date }}</span>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="swiper-pagination"></div>
+</div>
+{% endif %}

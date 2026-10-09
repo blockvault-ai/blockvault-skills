@@ -244,29 +244,52 @@ if the user confirms, take the `payload` object from step 3 response and sign it
 
 **Yield summary** (multiple positions):
 
-```markdown
-## Your staking yield
+Write the positions to an artifact file, then emit an ```artifact fenced block so the app renders them as a swipeable card deck. The template `stakely:positions` renders `data.positions`.
 
-| Asset | Staked | APY | Rewards | Est. /month |
-|-------|--------|-----|---------|-------------|
-{% for p in positions %}
-| {{ p.symbol }} | {{ p.staked }} | {{ p.apy }}% | {{ p.claimable }} | ~{{ p.monthly }} {{ p.symbol }} |
-{% endfor %}
+Call `text_editor` to save the positions as JSON:
+
+- **command**: `"create"`
+- **path**: `"artifacts/stakely-positions.json"`
+- **file_text**: a JSON object `{"positions": [...]}` — one object per position with:
+  - `symbol` — asset symbol (e.g. `ETH`).
+  - `chain` — display name (e.g. `Ethereum`).
+  - `apy` — numeric APY.
+  - `staked` — staked amount.
+  - `rewards` — pending/claimable rewards.
+  - `monthly` — estimated monthly rewards.
+
+Then emit:
+
+````markdown
+```artifact
+{"artifact":"artifacts/stakely-positions.json","template":"stakely:positions"}
+```
+````
 
 **Total est. annual:** ~{{ totals.annual }} USD
-```
 
 **Historic actions:**
 
-```markdown
-## Staking history
+Write the actions to an artifact file, then emit an ```artifact fenced block so the app renders them as a swipeable card deck. The template `stakely:history` renders `data.actions`.
 
-| Action | Amount | Tx | Date |
-|--------|--------|----|------|
-{% for a in actions %}
-| {{ a.type | capitalize }} | {{ a.amount }} {{ a.symbol }} | [`{{ a.txHash[:8] }}…`]({{ explorer }}/tx/{{ a.txHash }}) | {{ a.date }} |
-{% endfor %}
+Call `text_editor` to save the actions as JSON:
+
+- **command**: `"create"`
+- **path**: `"artifacts/stakely-history.json"`
+- **file_text**: a JSON object `{"actions": [...]}` — one object per action with:
+  - `type` — `stake`, `unstake`, or `withdraw`.
+  - `amount` — numeric amount.
+  - `symbol` — asset symbol.
+  - `date` — ISO 8601.
+  - `txHash` — transaction hash (optional).
+
+Then emit:
+
+````markdown
+```artifact
+{"artifact":"artifacts/stakely-history.json","template":"stakely:history","context":{"explorer":"<explorer base URL>"}}
 ```
+````
 
 ## Constraints
 
