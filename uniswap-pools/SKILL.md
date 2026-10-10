@@ -1,6 +1,6 @@
 ---
 name: uniswap-pools
-description: Discovers and ranks the best Uniswap liquidity pools, then opens and manages V2/V3/V4 LP positions. Use when the user wants to provide/add liquidity, earn yield from LP, open/manage a position, claim fees, or invest in pools. Finds top pools autonomously (no token/chain needed from the user) and guarantees both sides of the pair are funded before minting.
+description: Discovers and ranks the best Uniswap liquidity pools, then opens and manages V2/V3/V4 LP positions. Use when the user wants to provide/add liquidity, earn yield from LP, open/manage a position, claim fees, or invest in pools. Finds top pools autonomously (no token/chain needed from the user) and funds both sides of the pair before minting.
 metadata:
   category: defi
   enabled: true
@@ -8,24 +8,29 @@ metadata:
 
 # Uniswap Liquidity Pools
 
-Discover and rank pools, then open and manage V2/V3/V4 LP positions — non-custodial through BlockVault.
+Discover and rank pools, then open and manage V2/V3/V4 LP positions non-custodial through BlockVault.
 
-Base URL: `https://402.blockvault.ai` · Prefix: `/api/v1/uniswap`
-
-## Golden rules
-
-1. **Discovery is ONE call.** `GET /pools/recommend` already discovers, scores (0-100) and ranks pools across Ethereum/Base/Polygon (cached in Redis). Never probe `tokenlist`/`pool_info` yourself; never spawn subagents for discovery.
-2. **Fund both sides before ANY LP call.** A position needs BOTH tokens. Missing side → `add_asset` (register if unlisted) → `blockswap` into it → re-check `get_assets`. Never call `check_approval`/`create` with a missing side — the mint reverts.
-3. **Estimate → approve → create.** `check_approval` (both tokens) → `create` with `simulateTransaction:true`. Only sign/broadcast a clean `transactions[]` envelope.
-4. **`tickBounds`, never `priceBounds`** — the upstream `priceBounds` field is broken. Derive ticks from the pool's `currentTick`/`tickSpacing`.
 
 ## Reference files
 
-Read on demand via `run_js` → `read_skill_reference` (`{skill: "uniswap-pools", file: "<name>"}`):
+Discover the full reference for this skill in the `reference` folder. Each file is a self-contained reference for a specific topic. Load it with `run_js` → `read_skill_reference` (see below).
 
-- `endpoints` — all curl commands (discover, positions, check_approval, create, create_classic, increase, decrease, claim_fees).
-- `protocols` — V2/V3/V4 table and routing by `protocol`.
-- `fields` — field reference (chainId, amount, fee, tickBounds, poolReference, …).
+Call `run_js` with:
+- **function**: "read_skill_reference"
+- **data**: `{"skill":"uniswap-pools","file":"<name>"}`
+
+To list all available files, omit `file`:
+
+Call `run_js` with:
+- **function**: "read_skill_reference"
+- **data**: `{"skill":"uniswap-pools"}`
+
+
+Determine which reference files to load based on the workflow step:
+- is related to discovering pools → load `endpoints` + `fields`
+- is related to opening a position → load `endpoints` + `fields` + the protocol-specific file (`v2` / `v3` / `v4`)
+- is related to managing positions → load `endpoints` + `fields` + the protocol-specific file (`v2` / `v3` / `v4`)
+- is related to claiming fees → load `endpoints` + `fields` + the protocol-specific file (`v3` / `v4`)
 
 ## Workflow
 
@@ -41,69 +46,80 @@ Call `run_js` with:
 - **function**: "get_assets"
 - **data**: `{"hasBalance": true}`
 
-Note each asset's `symbol`, `blockchain`, and `balance`, plus the wallet `address` (the `address` field of an asset on the target chain). Use it verbatim as `walletAddress` — never a token address from `/pools/recommend`.
+The `symbol`, `blockchain`, and `balance` of each asset with a non-zero balance is used to fund the LP position. Stop if the user has no assets on any supported chain.
+
+Checklist:
+- **Wallet address** — the `address` field of an asset on the target chain.
+- **Native gas** — the `symbol` of the native token on each chain and its `balance`. 
+
+Stop if the user has no native gas on any supported chain.
+
 
 ### Step 2: Discover pools
 
-`curl .../pools/recommend -o pools.json` (one call, with `-o` so the `bash` result returns `artifact_path`). See `reference/endpoints.md` for the exact command. `poolReferenceIdentifier` = pool address; `protocol` = V2/V3/V4; `apy` = 7-day fee APY (lead with it); `risk` = Low/Medium/Higher; `score` 0-100.
+Call the endpoint with `chainId` = the chain of the user's assets and `limit` = 50. 
+The API returns a ranked list of pools with
 
-**Render as a card deck — do NOT read the JSON and do NOT write a Markdown list.** Emit this exact ```artifact fence, then a one-line **My pick:** + ONE question (which pool, how much). Never ask for tokens/chains/fees/ranges — they're resolved.
+```bash
+curl -sS "https://402.blockvault.ai/api/v1/uniswap/pools/recommend?chainId=<CHAIN_ID>&limit=<N>" -o pools.json
+```
+
+Emit this exact artifact fence: 
 
 ````markdown
-```artifact
-{"artifact":"<artifact_path>","template":"uniswap-pools:pool-list"}
-```
+  ```artifact
+  {"artifact":"<artifact_path>","template":"uniswap-pools:pool-list"}
+  ```
 ````
+Make a recommendation: <your recommendation> (score <score>, APY <apy>%, risk <risk>).
+Ask the user which pool they want to invest in (by number).
 
-### Step 3: Confirm the protocol with the user
 
-Read `protocol` from the pool object (V2/V3/V4). **Ask the user which protocol they want**. Present the trade-off in one line (V3/V4 = concentrated, higher APY, out-of-range risk; V2 = full-range, simpler, no range risk). If the pool is V2-only, skip the question and use V2.
 
-### Step 4: Fund both sides
+### Step 3: Fund both sides
 
-Resolve `poolReferenceIdentifier` + fee tier + **`protocol`** from the pool object. If one token is missing from `get_assets`, register it with `add_asset` (only if unlisted), then `blockswap` into it, then re-check `get_assets`. Stop if no route.
+**3a. Resolve the pool.** From the chosen pool object, note `token0Address`, `token1Address`, `token0Decimals`, `token1Decimals`, `poolReferenceIdentifier`, `fee`, and `protocol`.
+
+**3b. Decide the amounts.** Ask the user how much they want to invest in USD. The `independentToken.amount` is in decimal units of that token (not USD) — for a stablecoin side, "X USD" = `"X"`. The API computes the other side's amount from the pool ratio; it does NOT auto-swap.
+
+**3c. Fund what's missing.** Check which of the two tokens the wallet holds:
+
+- **Both tokens present** → done, continue to Step 4.
+- **One token missing** → swap half of the *investment amount* into the missing token with `blockswap`, then continue to Step 4.
+- **Neither token present** → fund both sides with `blockswap`, then continue to Step 4.
+- **Not enough native gas** → fund gas first with `blockswap`.
+
+To fund or swap, load the `blockswap` skill first:
+
+Call `load_skill` with:
+- **skill_names**: `["blockswap"]`
+
+Then follow its instructions to swap/bridge the missing side or top up native gas.
+
+If a token is not yet registered in `get_assets`, register it first:
 
 Call `run_js` with:
 - **function**: "add_asset"
 - **data**: `{"symbol":"<TOKEN_SYMBOL>","address":"<token0Address|token1Address>","decimals":<token0Decimals|token1Decimals>,"blockchain":"<chain>"}`
 
-`symbol`, `address` and `decimals` all come from the pool object (`token0Address`/`token0Decimals` or `token1Address`/`token1Decimals`). `blockchain` is the pool's `chain` name.
+Do not proceed to Step 4 until both sides are funded and the wallet has enough gas.
 
-### Step 5: Check approval
+### Step 4: Confirm the protocol with the user
 
-`check_approval` with `action:"create"`, **both tokens in `lpTokens`**. `protocol` must match the pool's `protocol`. See `reference/endpoints.md`.
+**Ask the user which protocol they want**. 
 
-### Step 6: Open the position
+After the user confirms the protocol, load the appropriate reference file protocol:
+  Call `run_js` with:
+  - **function**: "read_skill_reference"
+  - **data**: `{"skill":"uniswap-pools","file":"<protocol>"}`
 
-Open based on `protocol` (see `reference/protocols.md`):
-- `V2` → `create_classic` (`poolParameters`, no `tickBounds`).
-- `V3`/`V4` → `create` (`existingPool` + `tickBounds`).
+Present the trade-off in well structured sentences (V3/V4 = concentrated, higher APY, out-of-range risk; V2 = full-range, simpler, no range risk). If the pool is V2-only, skip the question and use V2.
 
-**Token order (critical):** `token0Address`/`token1Address` from `/pools/recommend` are already in the pool's canonical order. Pass them to `existingPool`/`poolParameters` **exactly as returned** — never swap or reorder them, or the mint computes wrong amounts.
-
-**Amount (critical):** `independentToken.amount` is in **decimal units, never wei**. For "X USD", provide the stablecoin side (USDT/USDC/DAI) with `amount: "X"` — 1 stablecoin = 1 USD. If the pool has no stablecoin, convert USD to the token amount using the current price. Never pass wei or a tiny fraction; the server converts decimal → wei.
-
-Always `simulateTransaction:true`.
-
-### Step 7: Verify simulation (feedback loop)
-
-- `STF`/`txFailureReason` → do NOT sign; report why and stop.
-- `transactions[]` empty → the wallet has no approval to spend the tokens. Sign the approval transactions from `check_approval` first, then re-run `create`. Do NOT sign an empty envelope.
-- Clean `transactions[]` → sign + notify.
+### Step 5: Open the position
+Based on the protocol, follow the appropriate workflow.
 
 ## Manage positions
-
-- **List** — `GET /lp/positions/<ADDRESS>` (V2/V3/V4). Resolve `token_id` from here.
-- **Increase** — `increase` + `nftTokenId` (omit for V2) + `independentToken`.
-- **Decrease/withdraw** — `decrease` + `nftTokenId` + `liquidityPercentageToDecrease` (1-100; 100 = full exit). V3 fees auto-included; no separate `claim_fees`.
-- **Claim fees** — `claim_fees` + `tokenId` (only to claim while keeping the position).
+Based on  the protocol, follow the appropriate workflow.
 
 ### Withdraw / exit
-
-1. `GET /lp/positions/<ADDRESS>` → resolve `token_id`.
-2. `check_approval` `action:"decrease"` with `nftTokenId` (V3/V4 NFT approval — **no `lpTokens`**). See `reference/endpoints.md`.
-3. `decrease` `simulateTransaction:true`, `liquidityPercentageToDecrease:100` → check simulation → sign.
-
-## Rendering
-
-After the search, emit the ```artifact fence (Step 2) so the app renders `data.pools` as a swipeable card deck. **Do NOT re-list pools in Markdown — the card deck IS the list.** Token logos come from the API's `logoURI0`/`logoURI1` — never a symbol-keyed CDN.
+Based on  the protocol, follow the appropriate workflow.

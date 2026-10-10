@@ -1,0 +1,112 @@
+/* BlockVault artifact render — blockswap quote estimate.
+ * Scoped to the .artifact-* classes emitted by blockswap templates. */
+
+.artifact-quote-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid #2a3a3e;
+  border-radius: 20px;
+  background: linear-gradient(180deg, #16282b 0%, #0e1c1f 100%);
+  overflow: hidden;
+}
+
+.artifact-quote-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.artifact-quote-card__title {
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  line-height: 1.3;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.artifact-quote-card__route {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.artifact-quote-card__side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.artifact-quote-card__icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.artifact-quote-card__label {
+  color: #5f5f5f;
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.artifact-quote-card__amount {
+  color: #ffffff;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.artifact-quote-card__amount--out {
+  color: #00ff94;
+}
+
+.artifact-quote-card__symbol {
+  color: #5f5f5f;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.artifact-quote-card__arrow {
+  color: #00ff94;
+  font-size: 1.1rem;
+  align-self: center;
+}
+
+.artifact-quote-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid #222d30;
+}
+
+.artifact-quote-card__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.artifact-meta {
+  color: #5f5f5f;
+  font-size: 0.72rem;
+}
+
+.artifact-value {
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: right;
+  word-break: break-word;
+}
+
+.artifact-value--warn {
+  color: #fbbf24;
+}

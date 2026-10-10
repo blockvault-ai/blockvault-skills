@@ -7,6 +7,7 @@ Base URL: `https://402.blockvault.ai` · Prefix: `/api/v1/uniswap`
 - Wallet positions
 - Check approval
 - Create V3/V4
+- Prepare (approvals + create)
 - Create V2 (classic)
 - Increase / decrease / claim
 
@@ -18,7 +19,7 @@ One call discovers, scores (0-100) and ranks pools across Ethereum/Base/Polygon 
 curl -sS "https://402.blockvault.ai/api/v1/uniswap/pools/recommend?chainId=<CHAIN_ID>&limit=<N>" -o pools.json
 ```
 
-`poolReferenceIdentifier` = pool address; `protocol` = V2/V3/V4; `apy` = 7-day fee APY; `risk` = Low/Medium/Higher; `score` 0-100.
+`poolReferenceIdentifier` = pool address; `protocol` = V2/V3/V4; `apy` = 7-day fee APY; `risk` = Low/Medium/Higher; `score` 0-100. For V3/V4 pools, `tickBounds` is precomputed server-side — pass it to `create`/`prepare` as-is.
 
 ## Wallet positions (read-only)
 
@@ -53,6 +54,16 @@ curl -sS -X POST "https://402.blockvault.ai/api/v1/uniswap/lp/create" \
   -H "Content-Type: application/json" \
   -d '{"walletAddress":"<ADDRESS>","chainId":<CHAIN_ID>,"protocol":"V3","independentToken":{"tokenAddress":"<TOKEN_ADDRESS>","amount":"<DECIMAL>"},"existingPool":{"token0Address":"<A>","token1Address":"<B>","poolReference":"<POOL_ADDRESS>"},"tickBounds":{"tickLower":<T>,"tickUpper":<T>},"urgency":"NORMAL","simulateTransaction":true}'
 ```
+
+## Prepare (approvals + create in one call — DEFAULT)
+
+```bash
+curl -sS -X POST "https://402.blockvault.ai/api/v1/uniswap/lp/prepare" \
+  -H "Content-Type: application/json" \
+  -d '{"walletAddress":"<ADDRESS>","chainId":<CHAIN_ID>,"protocol":"<V2|V3|V4>","poolReferenceIdentifier":"<POOL_ADDRESS>","token0Address":"<A>","token1Address":"<B>","fee":<FEE>,"independentToken":{"tokenAddress":"<TOKEN_ADDRESS>","amount":"<DECIMAL>"},"simulateTransaction":true}'
+```
+
+`prepare` checks approvals AND builds the create transaction in one round-trip. Returns a combined `transactions[]` envelope (approvals first, then the create) plus a `simulation` field (`{success, error?}`) from an on-chain `eth_call` of the create transaction. For V3/V4, the range is resolved in priority order: `tickBounds` → `priceBounds` → `rangePct` → server-recommended. Pass `rangePct` (e.g. `5` = ±5%) or `priceBounds` (`{minPrice,maxPrice}`) and the server converts to `tickBounds` (the upstream `priceBounds` field is broken).
 
 ## Create full-range V2
 

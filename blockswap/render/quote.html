@@ -1,0 +1,50 @@
+<div class="artifact-quote-card">
+  <div class="artifact-quote-card__body">
+    <div class="artifact-quote-card__title">
+      {% if data.from_chain != data.to_chain %}Bridge estimate{% else %}Swap estimate{% endif %}
+    </div>
+
+    <div class="artifact-quote-card__route">
+      <div class="artifact-quote-card__side">
+        <span class="artifact-quote-card__label">You send</span>
+        <span class="artifact-quote-card__amount">
+          {% if data.from_token_logo %}<img class="artifact-quote-card__icon" src="{{ data.from_token_logo }}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />{% endif %}
+          {{ data.from_amount_decimal }} <span class="artifact-quote-card__symbol">{{ context.token_in }}</span>
+        </span>
+      </div>
+      <span class="artifact-quote-card__arrow">↓</span>
+      <div class="artifact-quote-card__side">
+        <span class="artifact-quote-card__label">You receive</span>
+        <span class="artifact-quote-card__amount artifact-quote-card__amount--out">
+          {% if data.to_token_logo %}<img class="artifact-quote-card__icon" src="{{ data.to_token_logo }}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" />{% endif %}
+          {{ data.to_amount_decimal }} <span class="artifact-quote-card__symbol">{{ context.token_out }}</span>
+        </span>
+      </div>
+    </div>
+
+    <div class="artifact-quote-card__meta">
+      <div class="artifact-quote-card__row">
+        <span class="artifact-meta">Route</span>
+        <span class="artifact-value">{{ context.from_chain }} → {{ context.to_chain }}</span>
+      </div>
+      {% if data.tool %}
+      <div class="artifact-quote-card__row">
+        <span class="artifact-meta">Via</span>
+        <span class="artifact-value">{{ data.tool }}</span>
+      </div>
+      {% endif %}
+      {% if data.to_amount_min_decimal %}
+      <div class="artifact-quote-card__row">
+        <span class="artifact-meta">Min received</span>
+        <span class="artifact-value">{{ data.to_amount_min_decimal }} {{ context.token_out }}</span>
+      </div>
+      {% endif %}
+      {% if data.approval_address %}
+      <div class="artifact-quote-card__row">
+        <span class="artifact-meta">Approval</span>
+        <span class="artifact-value artifact-value--warn">Required before signing</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
