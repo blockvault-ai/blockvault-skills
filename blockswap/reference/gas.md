@@ -40,17 +40,18 @@ If `amount` is `"0"` (or the asset is missing), the chain has no native gas.
 
 ### Case 1 — has some gas + holds a non-native token
 
-Same-chain swap a slice of the non-native token into the native gas token
-`src_id` = source chain, 
-`token_in` = non-native token 
-`token_out` = native gas token.
+Same-chain swap a slice of the non-native token into the native gas token:
+   `src_id` = source chain, 
+   `token_in` = non-native token 
+   `token_out` = native gas token.
+   `amount` = the amount of the non-native token to swap (decimal units).
 
-```bash
-# same-chain swap
-curl -s -X POST "https://402.blockvault.ai/api/v1/blockswap/quote" \
-  -H "Content-Type: application/json" \
-  -d '{"chain":"<src_id>","token_in":"<SYMBOL>","token_out":"<SYMBOL>","amount":"<dec>","slippage":0.005,"swapper":"<addr>","sign":false}'
-```
+   ```bash
+   # same-chain swap
+   curl -s -X POST "https://402.blockvault.ai/api/v1/blockswap/quote" \
+   -H "Content-Type: application/json" \
+   -d '{"chain":"<src_id>","token_in":"<SYMBOL>","token_out":"<SYMBOL>","amount":"<dec>","slippage":0.005,"swapper":"<addr>","sign":false}'
+   ```
 
 ### Case 2 — zero gas
 

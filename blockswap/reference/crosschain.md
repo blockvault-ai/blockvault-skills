@@ -43,11 +43,13 @@ After the user confirms, Re-quote with `sign:true` (same `chain`/`to_chain`). Th
 
 ### 4. Track
 
+Poll until the status reaches a final state. Prefix each poll with `sleep` so the bridge has time to settle between checks:
+
 ```bash
-curl -s "https://402.blockvault.ai/api/v1/blockswap/status?txHash=<transaction_id>&bridge=<tool>&fromChain=<src>&toChain=<dst>"
+sleep 15 && curl -s "https://402.blockvault.ai/api/v1/blockswap/status?txHash=<transaction_id>&bridge=<tool>&fromChain=<src>&toChain=<dst>"
 ```
 
-The response has two legs: `sending` (source chain) and `receiving` (destination chain). Report `DONE` only when the `receiving` leg confirms; `PENDING` means the bridge is still settling.
+Repeat while the status is `PENDING`. The response has two legs: `sending` (source chain) and `receiving` (destination chain). Report `DONE` only when the `receiving` leg confirms; `PENDING` means the bridge is still settling.
 
 ## Example — bridge USDC from Ethereum to Base
 

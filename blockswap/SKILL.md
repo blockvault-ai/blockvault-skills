@@ -22,7 +22,7 @@ Call `run_js` with:
 - **data**: `{"skill":"blockswap"}`
 
 Determine which reference files to load based on the workflow step:
-- is related to swapping/bridging → load `endpoints` + `fields`
+- is related to swapping/bridging → load `endpoints`
 - is related to cross-chain bridging → load `crosschain` + `routing` + `endpoints`
 - is related to multi-hop routing → load `routing`
 - do not have native gas on a chain → load `gas` (funding cases)
@@ -46,11 +46,24 @@ Call `run_js` with:
 Use the endpoint `/tokens?chains=<ids>` to confirm the `token_in`/`token_out` symbols exist on the source/destination chains. 
 Stop if the user has no assets on the source chain or the destination chain is not in `supported_blockchains`.
 
+If a token the user needs (`token_in` or `token_out`) is not listed in `get_assets` but its blockchain is in `supported_blockchains`, register it first so it appears in the wallet and can be tracked. Get its `address`, `decimals`, `symbol`, and `logo_uri` from the `/tokens` endpoint:
+
+  Call `run_js` with:
+  - **function**: "add_asset"
+  - **data**: `{"symbol":"<SYMBOL>","address":"<address>","decimals":<decimals>,"blockchain":"<chain_name>","image":"<logo_uri>"}`
+
 Checklist:
 
-- **Wallet address** — the `address` field of an asset on the target chain.
-- **Native gas** — the `symbol` of the native token on each chain (ETH, MATIC, BNB, etc.) and its `balance`. 
-- **Assets** — the `symbol`, `blockchain`, and `balance` of each asset with a non-zero balance. Use these to confirm the `token_in`/`token_out` symbols exist on the source/destination chains. Stop if the user has no assets on the source chain or the destination chain is not in `supported_blockchains`.
+- **Wallet address**: 
+    - The `address` field of an asset on the target chain.
+- **Native gas**: 
+    - The `symbol` of the native token on each chain  and its `balance`. 
+- **Assets**: 
+    - The `symbol`, `blockchain`, and `balance` of each asset with a non-zero balance. 
+    - Use these to confirm the `token_in`/`token_out` symbols exist on the source/destination chains. 
+    - Stop if the user has no assets on the source chain or the destination chain is not in `supported_blockchains`.
+- **Chain id** — the EVM `chainId` of the source and destination chains, mapped from the `blockchain` name in `get_assets`.
+
 
 ### Step 2: Verify gas.
 
@@ -80,7 +93,7 @@ When `token_in` is the native gas token, the swap/bridge itself consumes gas on 
 1. Call `run_js` with:
    - **function**: "estimate_fee"
    - **data**: `{"symbol":"<native>","blockchain":"<chain>"}`
-2. Quote `amount` = full balance **minus** the fee buffer (and a small safety margin).
+2. Quote `amount` = full balance **minus** the fee buffer, the buffer need to be 3x the estimated fee.
 
 Quote the swap with `sign:false` and render the estimate as a card — do NOT read the JSON and do NOT write a Markdown list.
 
@@ -119,7 +132,13 @@ The response's `transaction_request` is auto-signed+broadcast. Note
 
 ### Step 7: Track & notify (feedback loop)
 
-`curl` the `/status` endpoint (see `reference/endpoints.md`). Report final status (`NOT_FOUND | PENDING | DONE | FAILED`; `DONE` → `substatus` `COMPLETED | PARTIAL | REFUNDED`) and the `token_out` received. Never invent a tx hash or amount.
+Poll the `/status` endpoint (see `reference/endpoints.md`) until it reaches a final state. Prefix each poll with `sleep` so the bridge has time to settle between checks:
+
+```bash
+sleep 15 && curl -s "https://402.blockvault.ai/api/v1/blockswap/status?txHash=<transaction_id>&bridge=<tool>&fromChain=<src>&toChain=<dst>"
+```
+
+Repeat while the status is `PENDING`, then report the final status (`NOT_FOUND | PENDING | DONE | FAILED`; `DONE` → `substatus` `COMPLETED | PARTIAL | REFUNDED`) and the `token_out` received. Never invent a tx hash or amount.
 
 ##Cross Chain Bridge
 Load the cross-chain reference if not already loaded.

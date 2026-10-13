@@ -14,6 +14,12 @@
     <option value="1">1 stop or fewer</option>
     <option value="2">2 stops or fewer</option>
   </select>
+  <select class="artifact-filter" data-filter="airline" data-filter-match="contains">
+    <option value="">All airlines</option>
+    {% for a in data.airlines %}
+    <option value="{{ a.code }}">{{ a.name or a.code }}</option>
+    {% endfor %}
+  </select>
 </div>
 <div class="artifact-swiper" data-swiper='{"slidesPerView":1.15,"spaceBetween":12,"pagination":true}'>
   <div class="swiper-wrapper">
@@ -24,7 +30,8 @@
     {% set currency = offer.pricing.display.currency %}
     {% set minutes = j.totalDuration.minutes if j.totalDuration and j.totalDuration.minutes else 0 %}
     {% set stops = j.stops if j.stops is not none else 0 %}
-    <div class="swiper-slide" data-price="{{ total }}" data-duration="{{ minutes }}" data-stops="{{ stops }}" data-departure="{{ first.departureTime }}">
+    {% set airline_codes = j.segments | map(attribute='carrier') | map(attribute='marketingCode') | reject('none') | join(',') %}
+    <div class="swiper-slide" data-price="{{ total }}" data-duration="{{ minutes }}" data-stops="{{ stops }}" data-departure="{{ first.departureTime }}" data-airline="{{ airline_codes }}">
       <div class="artifact-flight-card">
         <div class="artifact-flight-card__header">
           {% if first.carrier.marketingLogo %}<img class="artifact-flight-card__logo" src="{{ first.carrier.marketingLogo }}" alt="{{ first.carrier.marketingName }}" loading="lazy" decoding="async" referrerpolicy="no-referrer" />{% endif %}
