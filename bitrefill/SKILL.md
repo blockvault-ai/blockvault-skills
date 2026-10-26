@@ -1,6 +1,6 @@
 ---
 name: bitrefill
-description: Browse, search and purchase gift cards, mobile top-ups, eSIMs and bill payments on Bitrefill, consult invoices and orders, and answer support questions from the Bitrefill help center. Payments go on-chain from the user's BlockVault wallet in USDC on Base via x402 (auto-signed, no manual transfer). Use this whenever the user wants to explore Bitrefill products, see prices, buy something, look up a previous purchase, or get Bitrefill help.
+description: Browse, search and purchase gift cards, mobile top-ups, eSIMs and bill payments on Bitrefill, consult invoices and orders, and answer support questions from the Bitrefill help center. Payments go on-chain from the user's BlockVault wallet as an exact USDC transfer on Base to the invoice address (one wallet approval). Use this whenever the user wants to explore Bitrefill products, see prices, buy something, look up a previous purchase, or get Bitrefill help.
 metadata:
   tool: bash
   category: tools
@@ -95,7 +95,7 @@ Args:
 
 - `cart_items` — array (max 15). Each item: `product_id` + `package_id` set to the **`package_value`** string (e.g. `"50"` or `"5GB, 30 Days"` — NOT the full `slug<&>value`). Optional per-item: `refill_input` (phone/account/email when `recipient_type` requires it), `bill_payment_id` (for prepayment products), `gift` (`{recipient_name, recipient_email, sender_name, message?, theme?, send_date?}`).
 - `payment_method` — for BlockVault use **`usdc_base`**. Other crypto: `bitcoin`, `lightning`, `ethereum`, `solana`, `usdc_polygon`, `usdt_polygon`, `usdc_erc20`, `usdt_erc20`, `usdt_trc20`, `usdc_arbitrum`, `usdc_solana`, `eth_base`, `litecoin`. Account methods `balance` / `cashback` require a Bitrefill account balance — the user has none, so never use them.
-- `return_payment_link` — controls which payment channels the response carries. Default `true` = returns `payment_link` **and** `x402_payment_url` (the two pieces needed for x402 wallets). `false` = returns only crypto `payment_info` (address + amount) for a manual transfer, and **omits `x402_payment_url`/`payment_link`**. **For the BlockVault x402 flow always use the default (`true`) — do NOT set `false`, or there will be no `x402_payment_url` to call.**
+- `return_payment_link` — controls which payment channels the response carries. Default `true` = returns `payment_info` (address + amount) plus `payment_link` and `x402_payment_url`. `false` = returns only `payment_info`. BlockVault pays from `payment_info`, so either value works; keep the default.
 - `balance_currency` — only with `payment_method:"balance"` (`EUR` | `USD` | `XBT`).
 
 ```json
@@ -184,7 +184,7 @@ Args: `article_id` (from a search result).
 {"product_id": "<bill slug>", "package_id": "<amount>", "bill_payment_id": "<from prepayment loop>"}
 ```
 
-Always: `"payment_method": "usdc_base"` and `"return_payment_link": true` (the default). The invoice response then carries `x402_payment_url` for settling in USDC on Base via BlockVault's x402 client; `payment_info` holds the exact `address` and `amount` if a manual transfer is ever needed.
+Always: `"payment_method": "usdc_base"`. The invoice response carries `payment_info` with the exact `address`, `altcoinPrice` (USDC amount, decimal string) and `contractAddress` (USDC on Base) — that is what BlockVault pays.
 
 > The cart-item denomination field is documented two ways: the "eCommerce MCP" page calls it `package_id`, the current Partner guide calls it `package_value`. Both mean *"set this to the `package_value` string"*. Prefer `package_value`; the `tools/list` schema is the source of truth — if a call fails with `VALIDATION_ERROR`, inspect that name and adjust.
 
@@ -317,23 +317,24 @@ Search or browse using `search-products` (always pass `intent`) if needed, then 
 
 ### Create invoice
 
-Call `buy-products` with `payment_method:"usdc_base"` and `return_payment_link: true` (the default — do NOT set `false`, which drops `x402_payment_url` from the response). Extract from the response: `invoice_id`, `invoice_access_token`, `x402_payment_url`, `payment_info` (address + amount), and `expiration_minutes`. If `x402_payment_url` is missing when you expected it, you almost certainly sent `return_payment_link: false` — recreate the invoice with the default.
+Call `buy-products` with `payment_method:"usdc_base"`. Extract from `response`: `invoice_id`, `invoice_access_token`, `payment_info.address`, `payment_info.altcoinPrice` (the exact USDC amount, e.g. `"2.53"`), `payment_info.contractAddress`, and `expiration_minutes`.
 
 ### Confirm with the user
 
-Show the product, denomination, USDC amount, and chain (Base). Wait for an explicit "yes" / "confirm". Do NOT proceed without it.
+Show the product, denomination, the exact USDC amount (`payment_info.altcoinPrice`), and chain (Base). Wait for an explicit "yes" / "confirm". Do NOT proceed without it.
 
-### Pay via x402
+### Pay the invoice
 
-`curl` the **`x402_payment_url` returned by `buy-products`** — do NOT rebuild it, take the exact value from the response (it points to `https://api.bitrefill.com/x402/invoice/pay`). The first call returns HTTP 402 with a `PAYMENT-REQUIRED` header; BlockVault intercepts it, signs the USDC transfer on Base and retries with the `PAYMENT-SIGNATURE` header — the user approves it once in the wallet modal:
+Call `run_js` with:
 
-```bash
-curl -sS -X POST "<x402_payment_url>" \
-  -H "Content-Type: application/json" \
-  -d '{"invoice_id": "<invoice_id>"}'
-```
+- **function**: String, Required. Set to `"transfer"`.
+- **data**: Object, Required. `{"symbol": "USDC", "amount": "<payment_info.altcoinPrice>", "toAddress": "<payment_info.address>", "blockchain": "base"}`.
 
-x402 applies only to invoices created with a USDC method (`usdc_base`, `usdc_arbitrum`, `usdc_polygon`, `usdc_solana`) and younger than 15 minutes (the price lock). On the automatic retry, HTTP 200 means the payment is accepted and being settled. If the invoice is older than 15 minutes, the x402 call fails — recreate the invoice with `buy-products` first.
+Copy `amount` and `toAddress` verbatim from `payment_info` — never round, recompute, or add fees. The user approves the transfer once in the wallet modal; the result carries `txHash`. If the user rejects, stop and do not retry.
+
+**Never `curl` the `x402_payment_url` for MCP invoices.** Bitrefill's `/x402/invoice/pay` does not resolve the price of invoices created by `buy-products` and asks for its 1000 USDC route cap instead of the invoice amount. Paying it would authorize far more than the invoice.
+
+Pay before `expiration_minutes` elapses; if the invoice expired, recreate it with `buy-products` first.
 
 ### Poll invoice status
 
@@ -345,7 +346,7 @@ The successful `get-invoice-by-id` response contains `orders[].redemption_info` 
 
 ### Save receipt
 
-Use the `text_editor` tool to create `receipts/bitrefill-<INVOICE_ID>.md` containing product name, totals, the on-chain tx hash BlockVault returns after the x402 modal approval, and redemption codes.
+Use the `text_editor` tool to create `receipts/bitrefill-<INVOICE_ID>.md` containing product name, totals, the on-chain `txHash` returned by the `transfer` call, and redemption codes.
 
 Then, in your chat reply, emit the receipt path in **backticks** (inline code) so the user can tap it to open the file — the app makes `receipts/…`, `reports/…`, `trips/…`, `artifacts/…` paths clickable:
 
@@ -357,7 +358,8 @@ Never invent the `INVOICE_ID` — use the one returned by `buy-products`.
 
 ## Constraints
 
-- Always `payment_method: "usdc_base"` + `return_payment_link: true` (the default — needed so the response includes `x402_payment_url`). Never `"balance"` / `"cashback"` (the user has no Bitrefill account balance).
+- Always `payment_method: "usdc_base"` and pay with `run_js` → `transfer` using `payment_info.address` + `payment_info.altcoinPrice`. Never `"balance"` / `"cashback"` (the user has no Bitrefill account balance).
+- Never call `x402_payment_url` — it overcharges MCP invoices (1000 USDC cap).
 - In `cart_items[].package_id` use the `package_value` string, NOT the full `slug<&>value`.
 - Never invent product / invoice / order ids — derive them from API responses.
 - Never retry a failed payment without explicit user confirmation, and never retry `PAYMENT_UNCERTAIN` at all — poll instead.

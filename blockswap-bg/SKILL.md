@@ -7,6 +7,7 @@ metadata:
   background: true
 ---
 
+**CRITICAL — base URL.** The ONLY valid base URL is `https://402.blockvault.ai/api/v1/blockswap`. Never use any other domain or path (e.g. `api.blockvault.net`, `api.blockvault.ai`, or a URL without `/api/v1/`). Copy the exact URL from the curl examples below — do NOT invent or shorten it.
 
 ## Reference files
 
@@ -47,6 +48,7 @@ Checklist:
     - The top-level `address` field from `get_balances`.
 - **Native gas**:
     - The entry in `balances` whose `contractAddress` is `null`. Its `symbol` is the native token and its `balance` is the gas balance.
+    - Its `hasGasForTx` says whether the chain can pay a transaction (computed from the live gas price). Trust it; never estimate fees yourself.
 - **Assets**:
     - The `symbol`, `chainId`, and `balance` of each entry with a non-zero balance.
     - Use these to confirm the `token_in`/`token_out` symbols exist on the source/destination chains.
@@ -61,10 +63,10 @@ Call `read_skill_reference` with:
 - **skill**: String, Required. `"blockswap-bg"`.
 - **file**: String, Required. `"gas"`.
 
-Stop if no route exists to fund gas.
+If no chain can fund gas (Case 3 of the gas reference), call `end_task` with status `"blocked"` and stop.
 
-- **Gas present** → continue to Step 3.
-- **Gas missing or zero** → load the gas reference and follow its funding cases BEFORE quoting.
+- **`hasGasForTx: true`** → gas is present, continue to Step 3 (even if the balance looks small).
+- **`hasGasForTx: false` or entry missing** → load the gas reference and follow its funding cases BEFORE quoting.
 
 **Do NOT quote until gas is present** — the quote will fail if the source chain has no gas, and a bridge will fail if the destination chain has no gas.
 
@@ -77,6 +79,8 @@ Call `read_skill_reference` with:
 
 When `token_in` is the native gas token, the swap/bridge itself consumes gas on the source chain. Never quote the full balance — leave a buffer for the transaction fee.
 
+`amount` is in **decimal units** of `token_in` (e.g. `"0.5"` for 0.5 USDC), never base units, and never more than the `token_in` balance from `get_balances`.
+
 Quote the swap with `sign:false`:
 
 ```bash
@@ -85,7 +89,9 @@ curl -s -X POST "https://402.blockvault.ai/api/v1/blockswap/quote" \
   -d '{"chain":"<src_id>","token_in":"<SYMBOL>","token_out":"<SYMBOL>","amount":"<dec>","slippage":0.005,"swapper":"<addr>","sign":false}'
 ```
 
-Stop if no route exists.
+If no route exists, call `end_task` with status `"failed"`.
+
+**Never re-quote a failed quote with other amounts.** A failure with `errorCode` `INSUFFICIENT_GAS` (`insufficient funds for intrinsic transaction cost`), `INSUFFICIENT_TOKEN` (`TRANSFER_FROM_FAILED`, `STF`) or `REVERTED` will fail again at any amount: call `end_task` with status `"blocked"` (gas or funds) or `"failed"`.
 
 ### Step 5: Approve (only if `approval_address` is non-null)
 
@@ -93,7 +99,7 @@ Call `approve_token` with:
 - **token_address**: String, Required. The `from_token` address from the quote.
 - **spender**: String, Required. The `approval_address` from the quote.
 - **chain_id**: Number, Required. The source chain id.
-- **amount**: String, Optional. Omit to approve unlimited.
+- **amount**: String, Required. The exact amount in base units: the quote's `from_amount`. Unlimited approvals are rejected.
 
 Wait for it to succeed before Step 6.
 
@@ -104,7 +110,9 @@ The response's `transaction_request` is auto-signed+broadcast.
 
 ### Step 7: Track & notify (feedback loop)
 
-Poll the `/status` endpoint (see `reference/endpoints.md`) until it reaches a final state. Prefix each poll with `sleep` so the bridge has time to settle between checks:
+**Same-chain swap:** confirm it with `check_transaction` (`chain_id` = source chain, `tx_hash` = the broadcast `hash`, `wait_seconds` = `60`). Do NOT use `/status` for same-chain swaps — it answers 404.
+
+**Cross-chain bridge only:** confirm the source transaction with `check_transaction` first, then poll the `/status` endpoint (see `reference/endpoints.md`) until it reaches a final state. Prefix each poll with `sleep` so the bridge has time to settle between checks:
 
 ```bash
 sleep 15 && curl -s "https://402.blockvault.ai/api/v1/blockswap/status?txHash=<transaction_id>&bridge=<tool>&fromChain=<src>&toChain=<dst>"

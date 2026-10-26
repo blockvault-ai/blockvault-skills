@@ -30,7 +30,8 @@
     {% set currency = offer.pricing.display.currency %}
     {% set minutes = j.totalDuration.minutes if j.totalDuration and j.totalDuration.minutes else 0 %}
     {% set stops = j.stops if j.stops is not none else 0 %}
-    {% set airline_codes = j.segments | map(attribute='carrier') | map(attribute='marketingCode') | reject('none') | join(',') %}
+    {% set airline_codes = "" %}
+    {% for seg in j.segments %}{% if seg.carrier and seg.carrier.marketingCode %}{% set airline_codes = airline_codes + ("," if airline_codes else "") + seg.carrier.marketingCode %}{% endif %}{% endfor %}
     <div class="swiper-slide" data-price="{{ total }}" data-duration="{{ minutes }}" data-stops="{{ stops }}" data-departure="{{ first.departureTime }}" data-airline="{{ airline_codes }}">
       <div class="artifact-flight-card">
         <div class="artifact-flight-card__header">

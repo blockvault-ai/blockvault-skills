@@ -13,25 +13,25 @@
   flex: 1 1 160px;
   min-width: 140px;
   padding: 8px 12px;
-  border: 1px solid #222d30;
+  border: 1px solid var(--color-border-custom, #222d30);
   border-radius: 10px;
-  background: #0c1f20;
-  color: #ffffff;
+  background: var(--color-surface, #0c1f20);
+  color: var(--color-white, #ffffff);
   font-size: 0.8rem;
   outline: none;
 }
 
 .artifact-toolbar .artifact-search::placeholder {
-  color: #5f5f5f;
+  color: var(--color-muted, #5f5f5f);
 }
 
 .artifact-toolbar .artifact-sort,
 .artifact-toolbar .artifact-filter {
   padding: 8px 10px;
-  border: 1px solid #222d30;
+  border: 1px solid var(--color-border-custom, #222d30);
   border-radius: 10px;
-  background: #0c1f20;
-  color: #ffffff;
+  background: var(--color-surface, #0c1f20);
+  color: var(--color-white, #ffffff);
   font-size: 0.8rem;
   outline: none;
 }
@@ -62,12 +62,12 @@
 }
 
 .artifact-swiper .swiper-pagination-bullet {
-  background: #5f5f5f;
+  background: var(--color-muted, #5f5f5f);
   opacity: 0.6;
 }
 
 .artifact-swiper .swiper-pagination-bullet-active {
-  background: #00ff94;
+  background: var(--color-primary, #00ff94);
   opacity: 1;
 }
 
@@ -77,9 +77,9 @@
   gap: 8px;
   height: 100%;
   padding: 12px;
-  border: 1px solid #222d30;
+  border: 1px solid var(--color-border-custom, #222d30);
   border-radius: 20px;
-  background: linear-gradient(180deg, #0c1f20 0%, #051015 100%);
+  background: linear-gradient(180deg, var(--color-surface, #0c1f20) 0%, var(--color-surface-deep, #051015) 100%);
 }
 
 .artifact-flight-card__header {
@@ -97,7 +97,7 @@
 }
 
 .artifact-flight-card__title {
-  color: #ffffff;
+  color: var(--color-white, #ffffff);
   font-weight: 600;
   font-size: 0.9rem;
   line-height: 1.3;
@@ -113,7 +113,7 @@
   flex-direction: column;
   gap: 4px;
   padding: 8px 0;
-  border-top: 1px solid #1a2a2d;
+  border-top: 1px solid var(--color-border-custom, #1a2a2d);
 }
 
 .artifact-flight-card__leg:first-of-type {
@@ -128,14 +128,14 @@
 }
 
 .artifact-flight-card__airport {
-  color: #ffffff;
+  color: var(--color-white, #ffffff);
   font-weight: 700;
   font-size: 1.1rem;
   letter-spacing: 0.02em;
 }
 
 .artifact-flight-card__arrow {
-  color: #00ff94;
+  color: var(--color-primary, #00ff94);
   font-weight: 600;
 }
 
@@ -151,7 +151,7 @@
   flex-direction: column;
   gap: 2px;
   padding-top: 6px;
-  border-top: 1px solid #1a2a2d;
+  border-top: 1px solid var(--color-border-custom, #1a2a2d);
 }
 
 .artifact-flight-card__baggage {
@@ -160,7 +160,7 @@
   align-items: center;
   gap: 6px;
   padding-top: 6px;
-  border-top: 1px solid #1a2a2d;
+  border-top: 1px solid var(--color-border-custom, #1a2a2d);
 }
 
 .artifact-badge {
@@ -169,8 +169,8 @@
   gap: 4px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #064e3b;
-  color: #00ff94;
+  background: var(--color-badge-green-bg, #064e3b);
+  color: var(--color-primary, #00ff94);
   font-size: 0.72rem;
   font-weight: 600;
   line-height: 1.4;
@@ -178,6 +178,6 @@
 }
 
 .artifact-meta {
-  color: #5f5f5f;
+  color: var(--color-muted, #5f5f5f);
   font-size: 0.72rem;
 }

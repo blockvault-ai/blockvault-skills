@@ -12,6 +12,8 @@ metadata:
 Discover and rank pools, then open and manage V2/V3/V4 LP positions autonomously on the agent's ephemeral wallet. 
 All endpoints are public and free at `https://402.blockvault.ai/api/v1/uniswap`. Transactions returned by mutating endpoints are auto-signed and broadcast by the `bash` tool — do NOT sign them manually.
 
+**CRITICAL — base URL.** The ONLY valid base URL is `https://402.blockvault.ai/api/v1/uniswap`. Never use any other domain or path (e.g. `api.blockvault.net`, `api.blockvault.ai`, or a URL without `/api/v1/`). Copy the exact URL from the curl examples below — do NOT invent or shorten it.
+
 ## Reference files
 
 Load reference files on demand with `read_skill_reference`:
@@ -33,10 +35,12 @@ Call `get_balances` with:
 Note from the result:
 - **Wallet address** — the top-level `address` field.
 - **Chains** — the `chainId` of each chain with a non-zero balance (supported: 137=Polygon, 8453=Base, 1=Ethereum, 42161=Arbitrum, 10=Optimism).
-- **Native gas** — the entry in `balances` whose `contractAddress` is `null`. Its `symbol` is the native token (ETH/POL/etc.) and `balance` is the gas balance. This is how you test for native gas.
+- **Native gas** — the entry in `balances` whose `contractAddress` is `null`. Its `symbol` is the native token (ETH/POL/etc.) and `balance` is the gas balance. Its `hasGasForTx` (computed from the live gas price, with `estimatedTxFee` and `affordableTxs`) is the ONLY test for native gas: `true` means the chain can pay LP transactions, even if the balance looks small. Never estimate fees yourself.
 - **Tokens** — every other entry: `symbol`, `contractAddress`, `decimals`, and `balance` of each ERC-20.
 
-If the wallet has no native gas on any supported chain, fund it first with `blockswap-bg` (load that skill and follow its gas-funding steps) before continuing.
+Gas check:
+- **No supported chain has `hasGasForTx: true`** → nothing can be signed and gas can only come from outside. Do not load `blockswap-bg`, do not notify: call `end_task` with status `"blocked"`, reason `"no native gas on any supported chain"`, and a summary listing what the user must fund. Stop.
+- **The chain you need lacks gas but another chain has it** → fund it with `blockswap-bg` (gas reference, Case 2) before any transaction.
 
 **Check open positions.** Call `bash` with:
 
@@ -100,7 +104,7 @@ Pick the best pool autonomously: highest `score`, then highest `apy`, preferring
 - **Both tokens present** → done, continue to Step 6.
 - **One token missing** → swap half of the *investment amount* into the missing token with `blockswap-bg`, then continue to Step 6.
 - **Neither token present** → fund both sides with `blockswap-bg`, then continue to Step 6.
-- **Not enough native gas** → fund gas first with `blockswap-bg`.
+- **Not enough native gas** (`hasGasForTx: false` on the pool's chain) → fund gas first with `blockswap-bg`.
 
 To fund or swap, load the `blockswap-bg` skill first:
 
@@ -125,8 +129,8 @@ curl -sS -X POST "https://402.blockvault.ai/api/v1/uniswap/lp/prepare" \
 - The response returns a `transactions[]` envelope (approvals first, then the create) plus a `simulation` field. The `bash` tool auto-signs and broadcasts every transaction in order.
 
 Before relying on the result, check `simulation`:
-- `simulation.success == false` → do NOT sign; report `simulation.error` and stop.
-- `transactions[]` empty → no calldata to sign; report and stop.
+- `simulation.success == false` → do NOT sign; call `end_task` with status `"failed"` and `simulation.error` as the reason.
+- `transactions[]` empty → no calldata to sign; call `end_task` with status `"failed"`.
 
 ### Step 7: Manage existing positions
 
@@ -138,11 +142,23 @@ curl -sS "https://402.blockvault.ai/api/v1/uniswap/lp/positions/<ADDRESS>"
 
 Each position has `token0`/`token1` (contract addresses, NOT symbols), `fee`, `amount0`/`amount1`, `tokens_owed0`/`tokens_owed1` (pending fees), `earned0`/`earned1`, `current_tick`, `in_range`, and `token_id` (NFT token ID for V3/V4, or LP token address for V2).
 
-- **Claim fees** (keep the position): `POST /lp/claim_fees` with `tokenId` = `token_id`.
+- **Claim fees** (keep the position): `POST /lp/claim_fees` with `tokenId` = `token_id`. Claim only when `tokens_owed0`/`tokens_owed1` are worth clearly more than the fee (at least 3× the native entry's `estimatedTxFee`); skip dust. Claim each position at most once per run.
 - **Increase**: `POST /lp/increase` with `nftTokenId` = `token_id` and `independentToken`.
 - **Decrease / exit**: `POST /lp/decrease` with `nftTokenId` = `token_id` and `liquidityPercentageToDecrease` (100 = full exit).
 
 All three return a `transactions[]` envelope that `bash` auto-signs and broadcasts. Verify `simulation` before relying on the result.
+
+If any of them fails with `errorCode` `INSUFFICIENT_GAS`, stop all transactions on that chain: the remaining positions would fail the same way. Do not swap for gas on that chain (it needs gas too).
+
+### Step 7b: Confirm transactions
+
+The `bash` result lists every broadcast transaction with its `status` (`confirmed`, `reverted`, `unconfirmed`) and `hash`. For any `unconfirmed` entry, call `check_transaction` with:
+
+- **chain_id**: Number, Required. The transaction's `chainId`.
+- **tx_hash**: String, Required. The transaction's `hash`.
+- **wait_seconds**: Number, Optional. `60`.
+
+Never verify a Uniswap transaction with the BlockSwap `/status` endpoint or `sleep && curl` — it only knows bridges and answers 404. Never resend a transaction that is `unconfirmed` or `pending`.
 
 ### Step 8: Notify the user
 
@@ -152,7 +168,17 @@ Call `notify_user` with:
 - **message**: String, Required. Plain text summary (max 1024 chars). No markdown.
 - **level**: String, Optional. `"info"` (default), `"warning"`, or `"critical"`.
 
-Report the pool (`token0`/`token1`), protocol, amount invested, and the outcome (opened / increased / decreased / claimed / exited). If a step failed, report the error and stop.
+Report the pool (`token0`/`token1`), protocol, amount invested, and the outcome (opened / increased / decreased / claimed / exited). Skip this notification when nothing changed since the last run (see Recent Runs).
+
+### Step 9: End the run
+
+Call `end_task` with:
+
+- **status**: String, Required. `"done"` (actions completed), `"no_action"` (nothing to do), `"blocked"` (missing gas or funds) or `"failed"` (non-retryable error).
+- **summary**: String, Required. Pool, protocol, amounts, positions touched and outcome.
+- **reason**: String, Optional. Required for `blocked`/`failed`: the error that stopped you.
+
+When a step fails with a non-retryable error, skip Step 8 and end here with `blocked` or `failed`.
 
 ## Constraints
 

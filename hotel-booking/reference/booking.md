@@ -2,8 +2,9 @@
 
 ## Contents
 - Search rooms
-- Freeze a quote
-- Pay and confirm
+- Choose a payment method
+- Pay with card (hosted payment page)
+- Freeze a quote (USDC)
 - Booking history
 - Room fields
 
@@ -30,6 +31,34 @@ Render the result emitting:
   ```
 ````
 
+After rendering, **ask the user** which room they want (by number). Wait for their answer.
+
+## Pay with card (hosted payment page)
+
+Once the user picks a room, **ask to proceed with card payment**.
+
+1. Create a checkout session with the chosen room's `offerId`:
+
+```bash
+curl -sS -X POST https://402.blockvault.ai/api/v1/travel/book \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {{DELEGATE_JWT}}" \
+  -d '{"offer_id":"<room.offerId>"}'
+```
+
+Returns `prebook_id`, `transaction_id`, and `payment_url`.
+
+2. Give the user the payment link as a clickable markdown link (the app opens
+   external links in the system browser):
+
+```markdown
+[Complete payment](<payment_url>)
+```
+
+The user completes card payment in the browser; the hosted page then collects
+the lead guest's name/email and finalises the booking automatically. Tell the
+user to return to the chat once the page shows "Booking confirmed".
+
 ## Freeze a quote (priced, no charge yet)
 
 1. Spawn the `hotel_freeze` sub-agent to  collect the guest's:
@@ -46,17 +75,6 @@ Render the result emitting:
   ```
 
 Returns `quote_id` and `amount` (USDC in atomic units, 6 decimals).
-
-## Pay and confirm (x402, on-chain USDC)
-
-```bash
-curl -sS -X POST https://402.blockvault.ai/api/v1/travel/account-book/confirm \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {{DELEGATE_JWT}}" \
-  -d '{"quote_id":"<quote_id>"}'
-```
-
-On success returns `booking_id`, `status` (`CONFIRMED`), the hotel `checkin`/`checkout`, and `price`.
 
 ## Booking history
 

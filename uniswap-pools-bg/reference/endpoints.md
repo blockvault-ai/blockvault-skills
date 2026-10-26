@@ -2,6 +2,8 @@
 
 Base URL: `https://402.blockvault.ai/api/v1/uniswap`
 
+**CRITICAL — base URL.** The ONLY valid base URL is `https://402.blockvault.ai/api/v1/uniswap`. Never use any other domain or path (e.g. `api.blockvault.net`, `api.blockvault.ai`, or a URL without `/api/v1/`). Copy the exact URL from the curl examples below — do NOT invent or shorten it.
+
 ## Discover pools
 
 One call discovers, scores (0-100) and ranks pools across Ethereum/Base/Polygon (cached in Redis).

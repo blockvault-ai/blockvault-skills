@@ -2,6 +2,8 @@
 
 Base URL: `https://402.blockvault.ai/api/v1/blockswap`
 
+**CRITICAL — base URL.** The ONLY valid base URL is `https://402.blockvault.ai/api/v1/blockswap`. Never use any other domain or path (e.g. `api.blockvault.net`, `api.blockvault.ai`, or a URL without `/api/v1/`). Copy the exact URL from the curl examples below — do NOT invent or shorten it.
+
 ## Contents
 - Discover support
 - Estimate
@@ -59,7 +61,9 @@ Note `transaction_id` and `tool` for tracking. Do not use -o to save the JSON �
 
 ## Track & notify
 
-Poll until the status reaches a final state. Prefix each poll with `sleep` so the bridge has time to settle between checks:
+Same-chain swaps: confirm with the `check_transaction` tool (`chain_id`, `tx_hash`, `wait_seconds: 60`) — `/status` does not know them and answers 404.
+
+Bridges: poll `/status` until it reaches a final state. Prefix each poll with `sleep` so the bridge has time to settle between checks:
 
 ```bash
 sleep 15 && curl -s "https://402.blockvault.ai/api/v1/blockswap/status?txHash=<transaction_id>&bridge=<tool>&fromChain=<src>&toChain=<dst>"

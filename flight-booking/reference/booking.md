@@ -2,8 +2,9 @@
 
 ## Contents
 - Search flights
-- Freeze a quote
-- Pay and confirm
+- Choose a payment method
+- Pay with card (hosted payment page)
+- Freeze a quote (USDC)
 - Booking history
 - Journey fields
 
@@ -37,6 +38,37 @@ After rendering, add a one-line recommendation (**My pick:** <flight> — <reaso
 
 **Never print `offerId` values.** They are long opaque tokens — keep them in memory, keyed by the journey number you showed the user. When the user picks "flight 3", use `journeys[2].offers[0].offerId`.
 
+
+## Pay with card (hosted payment page)
+
+Once the user picks a flight, **ask to proceed with card payment**.
+
+1. Spawn the `flight_freeze` sub-agent to collect the contact and passenger
+   details
+
+2. Create a checkout session with the chosen journey's `offerId` and the
+   collected contact + passenger details:
+ 
+```bash
+curl -s -X POST https://402.blockvault.ai/api/v1/travel/flights/book \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {{DELEGATE_JWT}}" \
+  -d '{"offer_id":"<offerId>","contact":{"first_name":"<F>","last_name":"<L>","email":"<email>","phone_number":"<phone>","phone_country_code":"<CC>"},"passengers":[{"first_name":"<F>","last_name":"<L>","birthday":"<YYYY-MM-DD>","gender":"<M|F>","nationality":"<CC>","passenger_type":0}]}'
+```
+
+Returns `prebook_id`, `transaction_id`, and `payment_url`.
+
+3. Give the user the payment link as a clickable markdown link (the app opens
+   external links in the system browser):
+
+```markdown
+[Complete payment](<payment_url>)
+```
+
+The user completes card payment in the browser; the hosted page finalises the
+booking automatically. Tell the user to return to the chat once the page shows
+"Flight confirmed".
+
 ## Freeze a quote (priced, no charge yet)
 
 1. Spawn the `flight_freeze` sub-agent to collect the contact and passenger details:
@@ -55,21 +87,11 @@ curl -s -X POST https://402.blockvault.ai/api/v1/travel/flights/quote \
 - `passengers[]` must match the `adults`/`children`/`infants` counts from the search. `passenger_type`: 0=adult, 1=child, 2=infant.
 - Keep the returned `quote_id` in memory — do not write it to a state file.
 
-## Pay and confirm (x402, on-chain USDC)
-
-```bash
-curl -s -X POST https://402.blockvault.ai/api/v1/travel/flights/confirm \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {{DELEGATE_JWT}}" \
-  -d '{"quote_id":"<quote_id>"}'
-```
-
-On success, notify the user with the booking summary (route, dates, amount paid in USDC, `booking_id`).
 
 ## Booking history
 
 ```bash
-curl -s "https://402.blockvault.ai/api/v1/travel/bookings?page=1&page_size=20" \
+curl -s "https://402.blockvault.ai/api/v1/travel/bookings?page=<PAGE>&page_size=<PAGE_SIZE>" \
   -H "Authorization: Bearer {{DELEGATE_JWT}}"
 ```
 
