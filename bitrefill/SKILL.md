@@ -1,6 +1,6 @@
 ---
 name: bitrefill
-description: Browse, search and purchase gift cards, mobile top-ups, eSIMs and bill payments on Bitrefill, consult invoices and orders, and answer support questions from the Bitrefill help center. Payments go on-chain from the user's BlockVault wallet as an exact USDC transfer on Base to the invoice address (one wallet approval). Use this whenever the user wants to explore Bitrefill products, see prices, buy something, look up a previous purchase, or get Bitrefill help.
+description: Browse, search and purchase gift cards, mobile top-ups, eSIMs and bill payments on Bitrefill, consult invoices and orders, and answer support questions from the Bitrefill help center. Payments go on-chain from the user's BlockVault wallet as an exact USDT transfer on Polygon to the invoice address (one wallet approval). Use this whenever the user wants to explore Bitrefill products, see prices, buy something, look up a previous purchase, or get Bitrefill help.
 metadata:
   tool: bash
   category: tools
@@ -84,22 +84,22 @@ Args: `intent` (required — the user's goal, e.g. "buy a gift card for a friend
 ```
 
 **`get-product-details`** — full product info: `packages[]` (each with `package_value`), `range` (`min` / `max` / `step`), `recipient_type`, `payment_methods` (grouped as `address_based` / `link_only` / `balance`), and `prepayment` (if any).
-Args: `product_id` (required slug from search), `language` (default `en`), `currency` (`BTC` | `USD` | `EUR` | `USDC` | `USDT` | `ETH` | `SOL` | `GBP` | `AUD` | `CAD` | `INR` | `BRL`; default `BTC`, use `USDC` for BlockVault).
+Args: `product_id` (required slug from search), `language` (default `en`), `currency` (`BTC` | `USD` | `EUR` | `USDC` | `USDT` | `ETH` | `SOL` | `GBP` | `AUD` | `CAD` | `INR` | `BRL`; default `BTC`, use `USDT` for BlockVault).
 
 ```json
-{"name": "get-product-details", "arguments": {"product_id": "amazon_com-usa", "currency": "USDC"}}
+{"name": "get-product-details", "arguments": {"product_id": "amazon_com-usa", "currency": "USDT"}}
 ```
 
 **`buy-products`** — create the invoice. See variants below. Returns `invoice_id`, `invoice_access_token`, `payment_link`, `x402_payment_url`, `payment_info` (crypto address + amount), `expiration_minutes`, and `agent_instructions`.
 Args:
 
 - `cart_items` — array (max 15). Each item: `product_id` + `package_id` set to the **`package_value`** string (e.g. `"50"` or `"5GB, 30 Days"` — NOT the full `slug<&>value`). Optional per-item: `refill_input` (phone/account/email when `recipient_type` requires it), `bill_payment_id` (for prepayment products), `gift` (`{recipient_name, recipient_email, sender_name, message?, theme?, send_date?}`).
-- `payment_method` — for BlockVault use **`usdc_base`**. Other crypto: `bitcoin`, `lightning`, `ethereum`, `solana`, `usdc_polygon`, `usdt_polygon`, `usdc_erc20`, `usdt_erc20`, `usdt_trc20`, `usdc_arbitrum`, `usdc_solana`, `eth_base`, `litecoin`. Account methods `balance` / `cashback` require a Bitrefill account balance — the user has none, so never use them.
+- `payment_method` — for BlockVault use **`usdt_polygon`** (USDT is the default; Bitrefill offers no USDT on Arbitrum or Base). Other crypto: `bitcoin`, `lightning`, `ethereum`, `solana`, `usdc_polygon`, `usdc_base`, `usdc_erc20`, `usdt_erc20`, `usdt_trc20`, `usdc_arbitrum`, `usdc_solana`, `eth_base`, `litecoin`. Only use another method if the user explicitly asks for it. Account methods `balance` / `cashback` require a Bitrefill account balance — the user has none, so never use them.
 - `return_payment_link` — controls which payment channels the response carries. Default `true` = returns `payment_info` (address + amount) plus `payment_link` and `x402_payment_url`. `false` = returns only `payment_info`. BlockVault pays from `payment_info`, so either value works; keep the default.
 - `balance_currency` — only with `payment_method:"balance"` (`EUR` | `USD` | `XBT`).
 
 ```json
-{"name": "buy-products", "arguments": {"cart_items": [{"product_id": "amazon_com-usa", "package_id": "50"}], "payment_method": "usdc_base", "return_payment_link": true}}
+{"name": "buy-products", "arguments": {"cart_items": [{"product_id": "amazon_com-usa", "package_id": "50"}], "payment_method": "usdt_polygon", "return_payment_link": true}}
 ```
 
 **`submit-prepayment-step`** — only for products whose `get-product-details` response contains a `prepayment` block (e.g. prepaid Visa, utility bills). Loop until the response has `step:"final"` and a `bill_payment_id`, then pass that id into `buy-products.cart_items[].bill_payment_id`. Requires a logged-in user.
@@ -184,7 +184,7 @@ Args: `article_id` (from a search result).
 {"product_id": "<bill slug>", "package_id": "<amount>", "bill_payment_id": "<from prepayment loop>"}
 ```
 
-Always: `"payment_method": "usdc_base"`. The invoice response carries `payment_info` with the exact `address`, `altcoinPrice` (USDC amount, decimal string) and `contractAddress` (USDC on Base) — that is what BlockVault pays.
+Always: `"payment_method": "usdt_polygon"`. The invoice response carries `payment_info` with the exact `address`, `altcoinPrice` (USDT amount, decimal string) and `contractAddress` (USDT on Polygon) — that is what BlockVault pays.
 
 > The cart-item denomination field is documented two ways: the "eCommerce MCP" page calls it `package_id`, the current Partner guide calls it `package_value`. Both mean *"set this to the `package_value` string"*. Prefer `package_value`; the `tools/list` schema is the source of truth — if a call fails with `VALIDATION_ERROR`, inspect that name and adjust.
 
@@ -201,7 +201,7 @@ Never mask the redemption code — the user paid for it.
 
 Render results through the `render/*.html` templates below. Every read tool call adds `-o <name>.json` so the response is saved to an artifact; the `bash` tool decodes the TOON/SSE payload to JSON automatically, so the template consumes it directly. Never dump raw JSON or TOON to the user.
 
-Ignore the `price` field entirely — it is an internal Bitrefill unit. The user-facing denomination is `value` + `currency`. The actual USDC cost appears in the invoice as `payment_info.amount`. Never expose product slugs / ids to the user; keep them internal for chaining tool calls and refer to products by row number or display name.
+Ignore the `price` field entirely — it is an internal Bitrefill unit. The user-facing denomination is `value` + `currency`. The actual USDT cost appears in the invoice as `payment_info.amount`. Never expose product slugs / ids to the user; keep them internal for chaining tool calls and refer to products by row number or display name.
 
 **Product list** (search / browse results):
 
@@ -225,7 +225,7 @@ Call `get-product-details` with `-o bitrefill-product.json`. The `bash` result i
 ```
 ````
 
-After rendering, recommend the best package for the user's needs (e.g. "For a €50 top-up, pick package 1 — €56.19 in USDC"). Then ask which package they want.
+After rendering, recommend the best package for the user's needs (e.g. "For a €50 top-up, pick package 1 — €56.19 in USDT"). Then ask which package they want.
 
 **Invoice list**:
 
@@ -309,30 +309,30 @@ Call `run_js` with:
 - **function**: "get_assets"
 - **data**: `{"hasBalance": true}`
 
-Confirm USDC on `base` has enough for the purchase. If not, tell the user and stop.
+Confirm USDT on `polygon` has enough for the purchase. If not, tell the user and stop.
 
 ### Resolve product
 
-Search or browse using `search-products` (always pass `intent`) if needed, then call `get-product-details` with `currency:"USDC"` to read `packages[]` and pick the exact `package_value` to use as `package_id`. Do NOT invent ids — they must come from a previous API response. If the product has a `prepayment` block, run the `submit-prepayment-step` loop until you get a `bill_payment_id`.
+Search or browse using `search-products` (always pass `intent`) if needed, then call `get-product-details` with `currency:"USDT"` to read `packages[]` and pick the exact `package_value` to use as `package_id`. Do NOT invent ids — they must come from a previous API response. If the product has a `prepayment` block, run the `submit-prepayment-step` loop until you get a `bill_payment_id`.
 
 ### Create invoice
 
-Call `buy-products` with `payment_method:"usdc_base"`. Extract from `response`: `invoice_id`, `invoice_access_token`, `payment_info.address`, `payment_info.altcoinPrice` (the exact USDC amount, e.g. `"2.53"`), `payment_info.contractAddress`, and `expiration_minutes`.
+Call `buy-products` with `payment_method:"usdt_polygon"`. Extract from `response`: `invoice_id`, `invoice_access_token`, `payment_info.address`, `payment_info.altcoinPrice` (the exact USDT amount, e.g. `"2.53"`), `payment_info.contractAddress`, and `expiration_minutes`.
 
 ### Confirm with the user
 
-Show the product, denomination, the exact USDC amount (`payment_info.altcoinPrice`), and chain (Base). Wait for an explicit "yes" / "confirm". Do NOT proceed without it.
+Show the product, denomination, the exact USDT amount (`payment_info.altcoinPrice`), and chain (Polygon). Wait for an explicit "yes" / "confirm". Do NOT proceed without it.
 
 ### Pay the invoice
 
 Call `run_js` with:
 
 - **function**: String, Required. Set to `"transfer"`.
-- **data**: Object, Required. `{"symbol": "USDC", "amount": "<payment_info.altcoinPrice>", "toAddress": "<payment_info.address>", "blockchain": "base"}`.
+- **data**: Object, Required. `{"symbol": "USDT", "amount": "<payment_info.altcoinPrice>", "toAddress": "<payment_info.address>", "blockchain": "polygon"}`.
 
 Copy `amount` and `toAddress` verbatim from `payment_info` — never round, recompute, or add fees. The user approves the transfer once in the wallet modal; the result carries `txHash`. If the user rejects, stop and do not retry.
 
-**Never `curl` the `x402_payment_url` for MCP invoices.** Bitrefill's `/x402/invoice/pay` does not resolve the price of invoices created by `buy-products` and asks for its 1000 USDC route cap instead of the invoice amount. Paying it would authorize far more than the invoice.
+**Never `curl` the `x402_payment_url` for MCP invoices.** Bitrefill's `/x402/invoice/pay` does not resolve the price of invoices created by `buy-products` and asks for its 1000-unit route cap instead of the invoice amount. Paying it would authorize far more than the invoice.
 
 Pay before `expiration_minutes` elapses; if the invoice expired, recreate it with `buy-products` first.
 
@@ -358,8 +358,8 @@ Never invent the `INVOICE_ID` — use the one returned by `buy-products`.
 
 ## Constraints
 
-- Always `payment_method: "usdc_base"` and pay with `run_js` → `transfer` using `payment_info.address` + `payment_info.altcoinPrice`. Never `"balance"` / `"cashback"` (the user has no Bitrefill account balance).
-- Never call `x402_payment_url` — it overcharges MCP invoices (1000 USDC cap).
+- Always `payment_method: "usdt_polygon"` and pay with `run_js` → `transfer` using `payment_info.address` + `payment_info.altcoinPrice`. Never `"balance"` / `"cashback"` (the user has no Bitrefill account balance).
+- Never call `x402_payment_url` — it overcharges MCP invoices (1000-unit cap).
 - In `cart_items[].package_id` use the `package_value` string, NOT the full `slug<&>value`.
 - Never invent product / invoice / order ids — derive them from API responses.
 - Never retry a failed payment without explicit user confirmation, and never retry `PAYMENT_UNCERTAIN` at all — poll instead.

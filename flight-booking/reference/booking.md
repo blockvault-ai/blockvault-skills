@@ -4,7 +4,7 @@
 - Search flights
 - Choose a payment method
 - Pay with card (hosted payment page)
-- Freeze a quote (USDC)
+- Freeze a quote (USDT)
 - Booking history
 - Journey fields
 

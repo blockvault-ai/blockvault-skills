@@ -4,7 +4,7 @@
 - Search rooms
 - Choose a payment method
 - Pay with card (hosted payment page)
-- Freeze a quote (USDC)
+- Freeze a quote (USDT)
 - Booking history
 - Room fields
 
@@ -74,7 +74,7 @@ user to return to the chat once the page shows "Booking confirmed".
     -d '{"offer_id":"<room.offerId>","holder":{"first_name":"<F>","last_name":"<L>","email":"<email>"},"guests":[{"occupancy_number":1,"first_name":"<F>","last_name":"<L>","email":"<email>"}]}'
   ```
 
-Returns `quote_id` and `amount` (USDC in atomic units, 6 decimals).
+Returns `quote_id` and `amount` (USDT in atomic units, 6 decimals).
 
 ## Booking history
 

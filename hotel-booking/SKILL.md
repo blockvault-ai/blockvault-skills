@@ -1,6 +1,6 @@
 ---
 name: hotel-booking
-description: Search hotels and book a room (with hotel stay) via the BlockVault travel API (Nuitee/LiteAPI). Pay by card through a hosted payment page, or charge USDC on-chain through x402. Use when the user asks to find a hotel, book a room, plan a stay, or reserve accommodation with check-in/check-out dates, a budget, or a city.
+description: Search hotels and book a room (with hotel stay) via the BlockVault travel API (Nuitee/LiteAPI). Pay by card through a hosted payment page, or charge USDT on-chain (Arbitrum) through x402. Use when the user asks to find a hotel, book a room, plan a stay, or reserve accommodation with check-in/check-out dates, a budget, or a city.
 metadata:
   tool: bash
   category: travel
@@ -17,7 +17,7 @@ Today's date: {{DATE}}
 
 # Hotel Booking
 
-Help the user find and choose the best hotel stay, then book it end to end: search offers (paginated), freeze a priced quote, and charge USDC on-chain via x402 to finalise the booking. Card payment is also available through a hosted payment page.
+Help the user find and choose the best hotel stay, then book it end to end: search offers (paginated), freeze a priced quote, and charge USDT on-chain (Arbitrum) via x402 to finalise the booking. Card payment is also available through a hosted payment page.
 
 ## Instructions
 
@@ -86,13 +86,13 @@ Call `run_js` with:
 
 ### Step 4: Book the chosen room
 
-Once the user picks a room, **ask how they want to pay** (card or USDC), then
+Once the user picks a room, **ask how they want to pay** (card or USDT), then
 follow the matching section of the `booking` reference:
 
 - **Card** → `POST /travel/book` → give the returned `payment_url` to the user
   as a clickable markdown link. The hosted page collects the guest and
   finalises the booking.
-- **USDC** → freeze a quote (`/account-book/quote`) then confirm
+- **USDT** → freeze a quote (`/account-book/quote`) then confirm
   (`/account-book/confirm`, charges on-chain via x402).
 
 ## Follow-up questions (sub-agent reader)
@@ -107,5 +107,5 @@ To look up prices, ratings, or amenities, the sub-agent may call the `/travel/ho
 - **No state file during search/quote.** Keep `offerId`, quotes, and tokens in memory; only the confirmed booking is persisted server-side.
 - **Never invent dates or prices.** Ask if missing.
 - **Pagination**: always respect `has_more`/`total`; never assume the first page is complete.
-- **Payment requires explicit user intent** — confirm before calling `/account-book/confirm` (it charges real USDC) or opening the card payment page.
+- **Payment requires explicit user intent** — confirm before calling `/account-book/confirm` (it charges real USDT) or opening the card payment page.
 - 401 → ask the user to re-authenticate. 402 on `/search` → credit top-up. 402 on `/confirm` → payment declined/incomplete.

@@ -1,6 +1,6 @@
 ---
 name: flight-booking
-description: Search and book flights (airfare) via the BlockVault travel API (Nuitee/LiteAPI). Pay by card through a hosted payment page, or charge USDC on-chain through x402. Use when the user asks to find flights, book airfare, or plan a trip that includes flights — origin, destination, dates, budget, or a specific airline route. For hotel stays and room reservations use hotel-booking instead.
+description: Search and book flights (airfare) via the BlockVault travel API (Nuitee/LiteAPI). Pay by card through a hosted payment page, or charge USDT on-chain (Arbitrum) through x402. Use when the user asks to find flights, book airfare, or plan a trip that includes flights — origin, destination, dates, budget, or a specific airline route. For hotel stays and room reservations use hotel-booking instead.
 metadata:
   tool: bash
   category: travel
@@ -17,7 +17,7 @@ Today's date: {{DATE}}
 
 # Flight Booking
 
-Help the user find and choose the best flight, then book it end to end: search journeys (paginated), freeze a priced quote, and charge USDC on-chain via x402 to finalise the booking. Card payment is also available through a hosted payment page.
+Help the user find and choose the best flight, then book it end to end: search journeys (paginated), freeze a priced quote, and charge USDT on-chain (Arbitrum) via x402 to finalise the booking. Card payment is also available through a hosted payment page.
 
 ## Instructions
 
@@ -88,5 +88,5 @@ When the user asks a follow-up about flights result do not re-read the whole art
 - **No state file during search/quote.** Keep `offerId`, quotes, and tokens in memory; only the confirmed booking is persisted server-side.
 - **Never invent dates or prices.** Ask if missing.
 - **Pagination**: always respect `has_more`/`total`; never assume the first page is complete.
-- **Payment requires explicit user intent** — confirm before calling `/flights/confirm` (it charges real USDC) or opening the card payment page.
+- **Payment requires explicit user intent** — confirm before calling `/flights/confirm` (it charges real USDT) or opening the card payment page.
 - 401 → ask the user to re-authenticate. 402 on `/search` → credit top-up. 402 on `/confirm` → payment declined/incomplete.
