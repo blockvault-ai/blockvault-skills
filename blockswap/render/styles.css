@@ -39,12 +39,13 @@
   gap: 2px;
 }
 
-.artifact-quote-card__icon {
+.artifact-quote-card__amount .artifact-quote-card__icon {
+  display: inline-block;
+  flex-shrink: 0;
   width: 20px;
   height: 20px;
+  margin: 0;
   border-radius: 50%;
-  vertical-align: middle;
-  margin-right: 4px;
 }
 
 .artifact-quote-card__label {
@@ -56,6 +57,10 @@
 }
 
 .artifact-quote-card__amount {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   color: var(--color-white, #ffffff);
   font-size: 1.15rem;
   font-weight: 700;
@@ -76,7 +81,9 @@
 .artifact-quote-card__arrow {
   color: var(--color-primary, #00ff94);
   font-size: 1.1rem;
-  align-self: center;
+  align-self: flex-start;
+  width: 20px;
+  text-align: center;
 }
 
 .artifact-quote-card__meta {

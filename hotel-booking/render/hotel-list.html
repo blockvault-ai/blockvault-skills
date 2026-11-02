@@ -2,15 +2,20 @@
   <input class="artifact-search" data-search type="search" placeholder="Search hotels..." />
   <select class="artifact-sort" data-sort>
     <option value="">Sort by</option>
+    <option value="price:asc">Price: low to high</option>
+    <option value="price:desc">Price: high to low</option>
     <option value="rating:desc">Rating: high to low</option>
     <option value="stars:desc">Stars: high to low</option>
+    <option value="distance:asc">Distance: nearest first</option>
     <option value="name:asc">Name: A to Z</option>
   </select>
 </div>
 <div class="artifact-swiper" data-swiper='{"slidesPerView":1.15,"spaceBetween":12,"pagination":true}'>
   <div class="swiper-wrapper">
-    {% for h in data.hotels %}
-    <div class="swiper-slide" data-rating="{{ h.rating }}" data-stars="{{ h.stars }}" data-name="{{ h.name }}">
+    {% set hotels = data.hotels if data.hotels else data %}
+    {% for h in hotels %}
+    {% set price = h.from_price or h.price %}
+    <div class="swiper-slide" data-price="{{ price }}" data-rating="{{ h.rating }}" data-stars="{{ h.stars }}" data-distance="{{ h.distance_km or h.distance }}" data-name="{{ h.name }}">
       <div class="artifact-hotel-card">
         {% if h.main_photo %}<div class="artifact-hotel-card__media"><img src="{{ h.main_photo }}" alt="{{ h.name }}" loading="lazy" decoding="async" referrerpolicy="no-referrer" /></div>{% endif %}
         <div class="artifact-hotel-card__body">
@@ -18,8 +23,15 @@
           <div class="artifact-hotel-card__meta">
             {% if h.rating %}<span class="artifact-badge" data-searchable>{{ h.rating }} ★</span>{% endif %}
             {% if h.stars %}<span class="artifact-meta" data-searchable>{{ h.stars }} stars</span>{% endif %}
-            {% if h.distance %}<span class="artifact-meta" data-searchable>{{ h.distance }} km</span>{% endif %}
+            {% if h.distance_km or h.distance %}<span class="artifact-meta" data-searchable>{{ h.distance_km or h.distance }} km</span>{% endif %}
           </div>
+          {% if price %}
+          <div class="artifact-hotel-card__meta">
+            <span class="artifact-meta" data-searchable><strong>{{ price }} {{ context.currency or 'USD' }}</strong>{% if h.from_price_per_night or h.price_per_night %} · {{ h.from_price_per_night or h.price_per_night }}/night{% endif %}</span>
+            {% if h.max_discount_percent %}<span class="artifact-badge" data-searchable>-{{ h.max_discount_percent }}%</span>{% endif %}
+            {% if h.has_perks %}<span class="artifact-meta" data-searchable>perks</span>{% endif %}
+          </div>
+          {% endif %}
         </div>
       </div>
     </div>

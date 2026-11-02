@@ -33,14 +33,25 @@
         {% endif %}
         <div class="artifact-room-card__body">
           <strong data-searchable>{{ loop.index }}. {{ r.name or 'Room' }}</strong>
-          <span data-searchable>{{ r.price }} {{ context.currency }}</span>
+          <span data-searchable>{% if r.original_price %}<s>{{ r.original_price }}</s> {% endif %}{{ r.price }} {{ context.currency }}{% if r.price_per_night %} · {{ r.price_per_night }}/night{% endif %}</span>
+          {% if r.discount_percent %}<span class="artifact-badge" data-searchable>-{{ r.discount_percent }}%{% if r.promotions and r.promotions[0].name %} · {{ r.promotions[0].name }}{% endif %}</span>{% endif %}
           {% if r.board %}<span data-searchable>{{ r.board }}</span>{% endif %}
           {% if r.refundable %}<span data-searchable>refundable</span>{% endif %}
+          {% if r.perks %}
+          <div class="artifact-room-card__amenities" data-searchable>
+            {% for p in r.perks %}
+            <span class="artifact-amenity">✓ {{ p.name }}</span>
+            {% endfor %}
+          </div>
+          {% endif %}
           {% if r.amenities %}
           <div class="artifact-room-card__amenities" data-searchable>
             {% for a in r.amenities %}
             <span class="artifact-amenity">{{ a }}</span>
             {% endfor %}
+            {% if r.amenities_count and r.amenities_count > (r.amenities | length) %}
+            <span class="artifact-amenity">+{{ r.amenities_count - (r.amenities | length) }}</span>
+            {% endif %}
           </div>
           {% endif %}
         </div>

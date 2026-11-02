@@ -78,11 +78,24 @@ matching section:
 - **Card** → collect contact + passenger details (`flight_freeze`), then
   `POST /travel/flights/book` → give the returned `payment_url` to the user as
   a clickable markdown link. The hosted page finalises the booking.
+- **USDT** →
+  1. Ask once for a promo code (skip if the user already declined).
+  2. **Spawn the `flight_freeze` sub-agent** (`subagents` reference) to collect
+     contact + passenger details. Never ask for them in the main conversation,
+     and never call `/flights/quote` without them.
+  3. Freeze the quote (`/flights/quote`), optionally add seats/bags
+     (`/flights/quote/{quote_id}/services`), then confirm (`/flights/confirm`,
+     charges on-chain via x402) only after an explicit "yes".
+
+Use the `highlights` of the search response (cheapest / fastest / fewest stops)
+to back your recommendation, and map preferences like "with checked bag",
+"no Ryanair" or "fastest" to the filters and sorting in the `booking` reference.
 
 ## Follow-up questions (sub-agent reader)
 
 When the user asks a follow-up about flights result do not re-read the whole artifact in the main conversation. Spawn the `flight_filter` sub-agent to answer from the artifact.
-
+**USDT quotes require USD prices** — search with `currency: "USD"` when the user will pay in USDT.
+- 401 → ask the user to re-authenticate. 402 on `/search` → credit top-up. 402 on `/confirm` → payment declined/incomplete. 409 on `/confirm` → the promo code ran out; quote again without it. 422 on `/quote` → read `detail` and fix the request
 ## Constraints
 
 - **No state file during search/quote.** Keep `offerId`, quotes, and tokens in memory; only the confirmed booking is persisted server-side.

@@ -27,7 +27,7 @@ Call `spawn_subagents` with one task. The sub-agent asks one question at a time 
     - currency: <three-letter code, USD default>
     - preferred_airline: <airline name, or 'none'>
     ```
-  - **instructions**: Today's date is **{{DATE}}** — anchor every relative date ("tomorrow", "next Friday", "in 2 weeks") against it and reject past dates. Ask one field at a time in order: trip_type → origin → destination → outbound_date → (return_date if round trip) adults → children → infants → max stops → budget → currency → preferred airline. **Wait for the user's answer before asking the next.** After `origin` is confirmed, `web_search` with `query: "IATA code <origin> airport"` and `max_results: 3` to extract the 3-letter primary code; if multiple major airports exist, ask the user to pick. Repeat for `destination`. Never invent IATA codes.
+  - **instructions**: Ask in the user's language. Today's date is **{{DATE}}** — anchor every relative date ("tomorrow", "next Friday", "in 2 weeks") against it and reject past dates. Ask one field at a time in order: trip_type → origin → destination → outbound_date → (return_date if round trip) adults → children → infants → max stops → budget → currency → preferred airline. **Wait for the user's answer before asking the next.** After `origin` is confirmed, `web_search` with `query: "IATA code <origin> airport"` and `max_results: 3` to extract the 3-letter primary code; if multiple major airports exist, ask the user to pick. Repeat for `destination`. Never invent IATA codes.
 
 ## flight_freeze — collect contact + passenger details
 
@@ -48,7 +48,7 @@ Call `spawn_subagents` with one task, The sub-agent asks one question at a time 
     - contact_phone_country_code: <two-letter country code>
     - passengers: <JSON array of {first_name, last_name, birthday, gender, nationality, passenger_type}>
     ```
-  - **instructions**: Ask one field at a time and **wait for each answer before the next**. Collect the contact first (first name, last name, email, phone number), then one passenger entry per traveller — the number of passengers must match the `adults`/`children`/`infants` counts from the search. For each passenger ask: first name, last name, birthday (YYYY-MM-DD), gender (M or F), nationality (two-letter country code), and set `passenger_type` (0=adult, 1=child, 2=infant) from the traveller's age. Validate dates and country codes.
+  - **instructions**: Ask in the user's language. Ask one field at a time and **wait for each answer before the next**. Collect the contact first (first name, last name, email, phone number), then one passenger entry per traveller — the number of passengers must match the `adults`/`children`/`infants` counts from the search. For each passenger ask: first name, last name, birthday (YYYY-MM-DD), gender (M or F), nationality (two-letter country code), and set `passenger_type` (0=adult, 1=child, 2=infant) from the traveller's age. Validate dates and country codes.
 
 ## flight filter — how to answer from an artifact
 

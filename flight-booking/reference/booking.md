@@ -2,9 +2,11 @@
 
 ## Contents
 - Search flights
-- Choose a payment method
+- Filters and sorting
 - Pay with card (hosted payment page)
 - Freeze a quote (USDT)
+- Seats and extra bags
+- Promo codes
 - Booking history
 - Journey fields
 
@@ -25,6 +27,21 @@ curl -s -X POST https://402.blockvault.ai/api/v1/travel/flights/search \
 - Map `stops` to `max_stops`: `nonstop` → `0`, `1_stop` → `1`, `2_stops` → `2`. **Omit** `max_stops` when `any`.
 - Pass `budget` as `max_price` (number, no currency prefix). **Omit** `max_price` when `none`. The API filters journeys to the budget server-side.
 - **Paginate** with `limit`/`offset`; the response returns `total` and `has_more`. Never assume the first page is complete — respect `has_more` and fetch more pages when the user wants more options.
+
+## Filters and sorting
+
+Add only what the user asked for:
+
+| User intent | Body field |
+|---|---|
+| cheapest / fastest / earliest | `"sort_by":"price"` \| `"duration"` \| `"departure"` \| `"arrival"` \| `"stops"`, `"sort_order":"asc"` |
+| price range | `"min_price":<n>`, `"max_price":<n>` |
+| checked bag / carry-on included | `"includes_checked_bag":true`, `"includes_carry_on_bag":true` |
+| flexible ticket | `"changeable_only":true`, `"refundable_only":true` |
+| avoid an airline | `"exclude_airlines":["<IATA 2-letter>"]` |
+| max travel time | `"max_duration_minutes":<n>` |
+
+The response `highlights` gives the `journeyKey` of the `cheapest`, `fastest` and `fewest_stops` journeys across all results — use it for the recommendation.
 
 Render the result emitting:
 
@@ -86,6 +103,43 @@ curl -s -X POST https://402.blockvault.ai/api/v1/travel/flights/quote \
 
 - `passengers[]` must match the `adults`/`children`/`infants` counts from the search. `passenger_type`: 0=adult, 1=child, 2=infant.
 - Keep the returned `quote_id` in memory — do not write it to a state file.
+- Search with `currency: "USD"` when the user pays in USDT (other currencies return 422).
+- Optional `"promo_code":"<CODE>"` (see "Promo codes").
+- When the response has `services_available: true`, offer seats and extra bags before confirming.
+
+## Seats and extra bags
+
+1. List what can be added (filter with `category=seat` or `category=baggage`, and `segment_key` per flight):
+
+```bash
+curl -s "https://402.blockvault.ai/api/v1/travel/flights/quote/<quote_id>/services?category=baggage" \
+  -H "Authorization: Bearer {{DELEGATE_JWT}}" \
+  -o services-<quote_id>.json
+```
+
+   Each service has `service_id`, `name`, `price`, `currency`, `segment_key` and `seat` (`number`, `position`, `type`) or `baggage` (`bag_type`, `weight_kg`). Read it with `text_editor` `query`; show only what the user asked for (e.g. window seats, one checked bag).
+
+2. Apply the full selection (it **replaces** the previous one; `[]` clears it):
+
+```bash
+curl -s -X POST https://402.blockvault.ai/api/v1/travel/flights/quote/<quote_id>/services \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {{DELEGATE_JWT}}" \
+  -d '{"selected":[{"passenger_index":0,"service_id":"<service_id>","quantity":1}]}'
+```
+
+   Returns the new `amount`/`sell_fiat` and `services_fiat`; confirm charges the new amount. 409 → seat just taken, pick another. 410 → the fare expired, search again.
+
+## Promo codes
+
+```bash
+curl -s -X POST https://402.blockvault.ai/api/v1/travel/promo/validate \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer {{DELEGATE_JWT}}" \
+  -d '{"code":"<CODE>","kind":"flight","amount":<fare>}'
+```
+
+If `valid`, pass `"promo_code"` on the quote; the response shows `original_sell_fiat`, `discount_fiat` and the final `sell_fiat`. 409 on confirm → the code ran out; quote again without it.
 
 
 ## Booking history
@@ -101,7 +155,8 @@ The search response returns `journeys[]` (each compacted to the fields the card 
 
 - `journeyKey` — opaque journey identifier.
 - `segments[]` — one per leg: `originCode`, `destinationCode`, `departureTime`, `arrivalTime`, `direction`, `duration.minutes`, `carrier.marketingCode`, `carrier.marketingName`, `carrier.marketingLogo`, `carrier.operatingCode`.
-- `offers[]` — bookable fares, cheapest first: `offerId`, `pricing.display.total`, `pricing.display.currency`, `terms.refundable`, `fare.family`, `baggage`.
+- `offers[]` — bookable fares, cheapest first: `offerId`, `pricing.display.total`, `pricing.display.currency`, `terms.refundable`, `terms.changeable`, `fare.family`, `fare.seatsRemaining`, `baggage`.
+- `highlights` — `journeyKey` of the `cheapest`, `fastest` and `fewest_stops` journeys.
 - `totalDuration.minutes` — full journey duration.
 - `stops` — total stops (connections + technical stops).
 - `airlines[]` — distinct `{code, name}` pairs across the page, for the deck's airline dropdown.
