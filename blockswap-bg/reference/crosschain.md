@@ -6,6 +6,8 @@
 
 [ ] **Warn the user** a bridge is slower and spends gas twice.
 
+[ ] **Destination on Solana / Bitcoin** (`to_chain` `solana` / `bitcoin`): allowed only when the objective gives the destination address. Add `"receiver":"<dst_addr>"`; the destination-gas check does not apply. The source must be an agent EVM chain.
+
 ## Cross-chain bridge flow
 
 ### 1. Estimate

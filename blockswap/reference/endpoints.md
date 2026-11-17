@@ -30,6 +30,11 @@ Call this endpoint to discover the supported tokens on those chains:
 
 Same-chain swap: omit `to_chain` (or set it equal to `chain`). Cross-chain bridge: set `to_chain` to a different chain id.
 
+- `chain` / `to_chain` accept the wallet `blockchain` name (`ethereum`, `arbitrum`, `bsc`, `solana`, `bitcoin`, …) or the numeric id from `/chains`.
+- Solana and Bitcoin work like any other chain: `swapper` is the user's address on the source chain. Solana tokens can be passed by symbol or mint address.
+- Bridging between different VMs (EVM ↔ Solana / Bitcoin) also needs `"receiver":"<dst_addr>"` (the user's address on the destination chain).
+- `approval_address` is `null` for native tokens and for Solana / Bitcoin sources — skip the approve step.
+
 ```bash
 # same-chain swap
 curl -s -X POST "https://402.blockvault.ai/api/v1/blockswap/quote" \

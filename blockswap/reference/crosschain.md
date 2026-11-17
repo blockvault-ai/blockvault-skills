@@ -8,6 +8,8 @@
 
 [ ] **Warn the user** a bridge is slower and spends gas twice.
 
+[ ] **Cross-VM bridge (EVM ↔ Solana / Bitcoin)**: add `"receiver":"<dst_addr>"` — the `address` of the user's asset on the destination chain (from `get_assets`). `swapper` is the source-chain address. Without `receiver` the quote fails with `422`.
+
 
 ## Cross-chain bridge flow
 
@@ -56,6 +58,16 @@ Repeat while the status is `PENDING`. The response has two legs: `sending` (sour
 User holds USDC on Ethereum (with ETH gas) and wants it on Base (with ETH gas):
 
 1. `chain: "1"`, `to_chain: "8453"`, `token_in: "USDC"`, `token_out: "USDC"`.
+2. Estimate → present → confirm.
+3. Approve if `approval_address` present.
+4. Execute with `sign:true`.
+5. Track until `receiving` leg is `DONE`.
+
+## Example — bridge USDC from Arbitrum to Solana
+
+User holds USDC on Arbitrum (with ETH gas) and wants USDC on Solana:
+
+1. `chain: "arbitrum"`, `to_chain: "solana"`, `token_in: "USDC"`, `token_out: "USDC"`, `swapper: "<arbitrum_addr>"`, `receiver: "<solana_addr>"`.
 2. Estimate → present → confirm.
 3. Approve if `approval_address` present.
 4. Execute with `sign:true`.

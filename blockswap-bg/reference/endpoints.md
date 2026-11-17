@@ -44,7 +44,11 @@ curl -s -X POST "https://402.blockvault.ai/api/v1/blockswap/quote" \
   -d '{"chain":"<src_id>","to_chain":"<dst_id>","token_in":"<SYMBOL>","token_out":"<SYMBOL>","amount":"<dec>","slippage":0.005,"swapper":"<addr>","sign":false}'
 ```
 
-Note `approval_address` if present. For a bridge, it spends gas on BOTH chains.
+Note `approval_address` if present (it is `null` for native tokens — skip the approve step). For a bridge, it spends gas on BOTH chains.
+
+- `USDT` resolves to `USDT0` on chains that only list USDT0 (e.g. Arbitrum).
+- The agent wallet signs only on its EVM chains (`get_balances`). A Solana or Bitcoin source is rejected: nothing is signed.
+- To deliver funds to Solana or Bitcoin, bridge from an EVM chain and add `"receiver":"<dst_addr>"` — only when the task objective gives that destination address. Never invent it.
 
 ## Execute (`sign=true` — moves funds)
 

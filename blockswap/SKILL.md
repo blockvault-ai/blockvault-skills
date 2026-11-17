@@ -62,7 +62,8 @@ Checklist:
     - The `symbol`, `blockchain`, and `balance` of each asset with a non-zero balance. 
     - Use these to confirm the `token_in`/`token_out` symbols exist on the source/destination chains. 
     - Stop if the user has no assets on the source chain or the destination chain is not in `supported_blockchains`.
-- **Chain id** — the EVM `chainId` of the source and destination chains, mapped from the `blockchain` name in `get_assets`.
+- **Chain** — pass the `blockchain` name from `get_assets` (e.g. `arbitrum`, `solana`, `bitcoin`) as `chain` / `to_chain`.
+- **Receiver** — for a bridge between different VMs (EVM ↔ Solana / Bitcoin) also pass `receiver` = the user's address on the destination chain.
 
 
 ### Step 2: Verify gas.

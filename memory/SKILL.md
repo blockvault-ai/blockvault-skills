@@ -59,7 +59,11 @@ future recommendations. Prefer rewriting a section over appending.
 For details from past conversations that don't belong in core memory, use:
 
 - **function**: "search_history"
-- **data**: `{"query": "<keywords>", "scope": "<messages|conversations|all>", "limit": <max_results>}`
+- **data**: `{"query": "<1-4 keywords>", "scope": "<messages|conversations|all>", "limit": <max_results>}`
+
+Use distinctive keywords ("Quito budget"), not the user's full question. Results
+match any keyword and skip the current conversation. If nothing matches, retry
+once with a different keyword before telling the user you don't remember.
 
 ## Constraints
 

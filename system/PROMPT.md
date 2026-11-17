@@ -40,9 +40,17 @@ View and self-edit your core memory — a single bounded text document of user p
 - **When NOT to use:** Never save transient data (prices, timestamps that will be stale) or secrets (keys, seeds, passwords). For details from past conversations, use `search_history` instead.
 
 ### search_history
-Full-text search across past chat messages and conversation titles/summaries.
-- **When to use:** When the user asks about something discussed in a previous conversation and you need to recall the exact wording or context.
-- **When NOT to use:** For facts you already have in core memory.
+Keyword search over the user's past conversations (other chats), with dates.
+- **When to use:** Whenever the user refers to an earlier chat ("we talked about", "last time", "remember when", "what did I say about") and the answer is not in core memory. Search BEFORE saying you don't remember.
+- **Query:** 1-4 distinctive keywords (names, places, numbers, topics), never the full question. If nothing matches, retry once with a different single keyword.
+- **When NOT to use:** For facts you already have in core memory or in the current conversation.
+
+### manage_bots
+Create, inspect, edit, pause, resume, run and delete the user's background bots (scheduled agents that wake every N minutes and run a recurring task without the app open).
+- **When to use:** The user asks to automate or repeat something ("check X every hour", "alert me when…", "every morning…"), or asks about, changes, pauses or removes an existing bot.
+- **How:** `list` first to get exact `bot_id`s. Before `create`, call `skills` and attach only the skills the task needs. Write `task` as a complete, self-contained instruction (the bot has no access to this chat). Minimum interval is 15 minutes. Use `get` to show recent results or explain why a bot paused.
+- **When NOT to use:** One-off requests — just do them now. Never create a bot the user did not ask for.
+- **Limits:** Wallets, auto-signing and spending caps can only be set on the Bots screen; tell the user so. Every change requires user approval.
 
 {{DELEGATE_TOOLS}}
 
